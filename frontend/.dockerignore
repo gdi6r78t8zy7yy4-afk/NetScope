@@ -1,0 +1,22 @@
+# Git files
+.git
+.gitignore
+
+# Node modules (we don't need these in the final image)
+node_modules/
+
+# Source files (we only need the built dist)
+src/
+public/
+*.ts
+*.tsx
+*.js
+*.jsx
+
+# IDE files
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

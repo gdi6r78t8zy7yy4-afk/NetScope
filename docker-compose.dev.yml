@@ -11,15 +11,17 @@ services:
     container_name: netscope-backend-dev
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///app.db
+      # DEVELOPMENT ONLY: Change in production!
       - SECRET_KEY=dev-secret-key-change-in-production
       - API_KEY=dev-api-key
+      # DEVELOPMENT ONLY: In production, use specific allowed origins!
       - ALLOWED_ORIGINS=*
       - DEBUG=true
     ports:
       - "8000:8000"
     volumes:
       - ./backend/app:/app/app
-      - ./backend/.env:/app/.env
+      - ./backend/.env:/app/.env:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
@@ -39,16 +41,16 @@ services:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
 
-  # Database for development
+  # Database for development (without port exposure)
   postgres:
     image: postgres:15-alpine
     container_name: netscope-postgres-dev
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-netscope}
+      # DEVELOPMENT ONLY: Change in production!
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netscope123}
       POSTGRES_DB: netscope_dev
-    ports:
-      - "5432:5432"
+    # REMOVED PORT EXPOSURE - use internal network only
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:

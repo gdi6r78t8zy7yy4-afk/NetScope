@@ -20,16 +20,6 @@ RUN pip install --no-cache-dir python-dotenv uvicorn[standard]
 COPY app/ ./app/
 COPY alembic.ini .
 
-# Install development tools
-RUN pip install --no-cache-dir python-dotenv uvicorn[standard]
-
-# Install dev tools
-RUN pip install --no-cache-dir python-dotenv uvicorn[standard]
-
-# Copy application code
-COPY app/ ./app/
-COPY alembic.ini .
-
 # Expose port
 EXPOSE 8000
 
