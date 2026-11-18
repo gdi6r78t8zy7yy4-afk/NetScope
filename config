@@ -1,0 +1,10 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = https://github.com/gdi6r78t8zy7yy4-afk/NetScope.git
+	fetch = +refs/heads/*:refs/remotes/origin/*

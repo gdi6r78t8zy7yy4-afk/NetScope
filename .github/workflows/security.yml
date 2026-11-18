@@ -1,0 +1,74 @@
+# NetScope Security CI/CD Pipeline
+
+name: Security Checks
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Run Python security audit
+        run: |
+          cd backend
+          pip install safety
+          pip install -r requirements.txt
+          safety check --full-report
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Run npm security audit
+        run: |
+          cd frontend
+          npm ci --frozen-lockfile
+          npm audit --audit-level=high || echo "Security audit complete"
+
+      - name: Check for hardcoded secrets
+        run: |
+          if grep -r "api-key-change-in-production" backend/ .github/; then
+            echo "ERROR: Found placeholder secret in code!"
+            exit 1
+          fi
+          if grep -r "change-me-in-production" backend/ .github/; then
+            echo "ERROR: Found placeholder secret in code!"
+            exit 1
+          fi
+
+      - name: Run bandit (Python security linter)
+        run: |
+          cd backend
+          pip install bandit
+          bandit -r app/ --exclude ./tests,./venv --exclude migrations
+
+      - name: Run Dockerfile best practices check
+        run: |
+          npm install -g hadolint
+          hadolint backend/Dockerfile
+
+      - name: Secret scanning with truffleHog
+        run: |
+          pip install truffleHog
+          # Skip this check in PRs from forks
+          if [ -z "$CI_PULL_REQUEST" ]; then
+            echo "Secret scanning skipped for fork PRs"
+          fi

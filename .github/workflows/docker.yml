@@ -1,0 +1,58 @@
+# NetScope Docker Compose CI/CD Pipeline
+
+name: Docker Compose CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-docker-compose:
+    name: Test Docker Compose
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          docker-compose --version
+          docker --version
+
+      - name: Validate Docker Compose configuration
+        run: |
+          cd backend
+          docker-compose -f ../docker-compose.yml config --quiet
+
+      - name: Build Docker images
+        run: |
+          docker-compose build
+
+      - name: Start services (detached)
+        run: |
+          docker-compose up -d --build
+
+      - name: Wait for services to be healthy
+        run: |
+          sleep 60
+
+      - name: Run health checks
+        run: |
+          docker-compose ps
+          curl -f http://localhost:8000/health || exit 1
+
+      - name: Run integration tests
+        run: |
+          curl -f http://localhost:8000/health/extended || exit 1
+          curl -f http://localhost:3000/health || exit 1
+
+      - name: Stop services
+        if: always()
+        run: |
+          docker-compose down
