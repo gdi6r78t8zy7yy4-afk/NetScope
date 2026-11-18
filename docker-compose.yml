@@ -1,0 +1,106 @@
+# NetScope Docker Compose Configuration
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: netscope-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-netscope}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netscope123}
+      POSTGRES_DB: netscope
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netscope}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - netscope-network
+
+  # Redis (optional, for production cache/session)
+  redis:
+    image: redis:7-alpine
+    container_name: netscope-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - netscope-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netscope-backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-netscope}:${POSTGRES_PASSWORD:-netscope123}@postgres:5432/${POSTGRES_DB:-netscope}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - API_KEY=${API_KEY:-api-key-change-in-production}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:80}
+      - DEBUG=${DEBUG:-false}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    networks:
+      - netscope-network
+
+  # Frontend Web Server
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: netscope-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - netscope-network
+
+  # Nginx Reverse Proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: netscope-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - netscope-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  netscope-network:
+    driver: bridge

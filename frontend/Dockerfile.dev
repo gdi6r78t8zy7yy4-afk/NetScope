@@ -1,0 +1,18 @@
+# NetScope Frontend Development Dockerfile
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json ./
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose ports (Vite uses 3000 by default)
+EXPOSE 3000
+
+# Run development server with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

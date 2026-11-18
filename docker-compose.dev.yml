@@ -1,0 +1,61 @@
+# NetScope Docker Compose Development Configuration
+
+version: "3.8"
+
+services:
+  # Backend with hot reload for development
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: netscope-backend-dev
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///app.db
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - API_KEY=dev-api-key
+      - ALLOWED_ORIGINS=*
+      - DEBUG=true
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/.env:/app/.env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # Frontend with hot reload for development
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: netscope-frontend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+
+  # Database for development
+  postgres:
+    image: postgres:15-alpine
+    container_name: netscope-postgres-dev
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-netscope}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netscope123}
+      POSTGRES_DB: netscope_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netscope}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/tauri-conf",
+  "build": {
+    "beforeDevCommand": "cd ../.. && npm run dev",
+    "beforeBuildCommand": "cd ../.. && npm run build",
+    "devPath": "http://localhost:3000",
+    "distDir": "../..",
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "Copyright (c) 2024 NetScope Team",
+    "deb": {
+      "depends": []
+    },
+    "identifier": "com.netscope.app",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "longDescription": "",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "minimumSystemVersion": "13.0",
+      "releaseType": "default",
+      "providerShortName": null
+    },
+    "resources": [],
+    "shortDescription": "",
+    "targets": "all"
+  },
+  "security": {
+    "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';"
+  },
+  "productName": "NetScope",
+  "version": "1.0.0"
+}

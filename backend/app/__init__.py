@@ -1,0 +1,8 @@
+# NetScope Backend Application
+
+"""
+NetScope - Network Discovery & Vulnerability Intelligence Platform
+Backend Application Package
+"""
+
+__version__ = "1.0.0"

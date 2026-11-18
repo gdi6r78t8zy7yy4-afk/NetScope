@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/tauri-capabilities",
+  "identifier": "default",
+  "description": "Default capabilities for NetScope",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open"
+  ]
+}

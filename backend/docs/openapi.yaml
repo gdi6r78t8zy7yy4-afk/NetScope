@@ -1,0 +1,466 @@
+openapi: 3.0.0
+info:
+  title: NetScope API
+  version: 1.0.0
+  description: |
+    Network scanning and asset management API.
+    
+    ## Authentication
+    Bearer token authentication required for write operations.
+    
+    ## Error Handling
+    Errors follow the RFC 7807 problem details format.
+    
+    ## API Versioning
+    - URL path: /api/v1/...
+    - Query param: ?api_version=v1
+    - Header: X-API-Version: v1
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      
+security:
+  - bearerAuth: []
+
+paths:
+  # Root endpoints
+  /:
+    get:
+      summary: API root
+      security: []
+      responses:
+        '200':
+          description: API status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  version:
+                    type: string
+                  status:
+                    type: string
+
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+
+  # Network endpoints
+  /api/v1/networks:
+    get:
+      summary: List all networks
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of networks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Network'
+    post:
+      summary: Create a new network
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NetworkCreate'
+      responses:
+        '201':
+          description: Network created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Network'
+
+  /api/v1/networks/{network_id}:
+    get:
+      summary: Get a specific network
+      parameters:
+        - name: network_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Network details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Network'
+        '404':
+          description: Network not found
+    put:
+      summary: Update a network
+      parameters:
+        - name: network_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NetworkUpdate'
+      responses:
+        '200':
+          description: Network updated
+    delete:
+      summary: Delete a network
+      parameters:
+        - name: network_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Network deleted
+
+  /api/v1/networks/{network_id}/subnets:
+    post:
+      summary: Create a subnet
+      parameters:
+        - name: network_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubnetCreate'
+      responses:
+        '201':
+          description: Subnet created
+
+  # Asset endpoints
+  /api/v1/assets:
+    get:
+      summary: List all assets
+      security: []
+      responses:
+        '200':
+          description: List of assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Asset'
+    post:
+      summary: Create a new asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetCreate'
+      responses:
+        '201':
+          description: Asset created
+
+  /api/v1/assets/{asset_id}:
+    get:
+      summary: Get an asset by ID
+      parameters:
+        - name: asset_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Asset details
+    put:
+      summary: Update an asset
+      parameters:
+        - name: asset_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetUpdate'
+    delete:
+      summary: Delete an asset
+      parameters:
+        - name: asset_id
+          in: path
+          required: true
+          schema:
+            type: integer
+
+  /api/v1/assets/ip/{ip_address}:
+    get:
+      summary: Get an asset by IP address
+      parameters:
+        - name: ip_address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Asset details
+
+  # Scan endpoints
+  /api/v1/scans:
+    get:
+      summary: List all scans
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of scans
+    post:
+      summary: Create a new scan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanCreate'
+      responses:
+        '201':
+          description: Scan created
+
+  /api/v1/scans/{scan_id}:
+    get:
+      summary: Get a scan by ID
+      parameters:
+        - name: scan_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Scan details
+
+  /api/v1/scans/{scan_id}/executions:
+    post:
+      summary: Execute a scan
+      parameters:
+        - name: scan_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Scan execution started
+
+  /api/v1/scans/{scan_id}/cancellations:
+    post:
+      summary: Cancel a scan
+      parameters:
+        - name: scan_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Scan cancelled
+
+  # Vulnerability endpoints
+  /api/v1/vulnerabilities:
+    get:
+      summary: List vulnerabilities
+      parameters:
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of vulnerabilities
+    post:
+      summary: Create a vulnerability (manual entry)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VulnerabilityCreate'
+      responses:
+        '201':
+          description: Vulnerability created
+
+  /api/v1/vulnerabilities/cve/{cve_id}:
+    get:
+      summary: Get vulnerability by CVE ID
+      parameters:
+        - name: cve_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vulnerability details
+
+  # Discovery endpoints
+  /api/v1/discovery/active:
+    post:
+      summary: Run active discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target:
+                  type: string
+                rate_limit:
+                  type: string
+
+  /api/v1/discovery/passive:
+    get:
+      summary: Run passive discovery
+      responses:
+        '200':
+          description: Passive discovery results
+
+  # Intelligence endpoints
+  /api/v1/intelligence/sync:
+    post:
+      summary: Sync intelligence sources
+      responses:
+        '200':
+          description: Sync completed
+
+components:
+  schemas:
+    Network:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        cidr:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        scan_priority:
+          type: integer
+
+    NetworkCreate:
+      type: object
+      required:
+        - name
+        - cidr
+      properties:
+        name:
+          type: string
+        cidr:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+
+    Asset:
+      type: object
+      properties:
+        id:
+          type: integer
+        ip_address:
+          type: string
+        mac_address:
+          type: string
+        hostname:
+          type: string
+        device_type:
+          type: string
+
+    Scan:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        scan_type:
+          type: string
+          enum: [discovery, port_scan, vulnerability]
+        status:
+          type: string
+          enum: [pending, running, completed, cancelled, failed]
+        target_cidr:
+          type: string
+
+    Vulnerability:
+      type: object
+      properties:
+        cve_id:
+          type: string
+        description:
+          type: string
+        cvss_score:
+          type: number
+        severity:
+          type: string
+
+    DiscoveryResult:
+      type: object
+      properties:
+        discovery_method:
+          type: string
+        hosts_found:
+          type: integer
+        assets_saved:
+          type: integer
+        status:
+          type: string

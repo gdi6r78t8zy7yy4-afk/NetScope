@@ -1,0 +1,28 @@
+[package]
+name = "netscope"
+version = "1.0.0"
+description = "Network Discovery & Vulnerability Intelligence Platform"
+authors = ["NetScope Team"]
+license = "GPL-3.0"
+repository = ""
+default-run = "netscope"
+
+[dependencies]
+tauri = { version = "2.0", features = ["api-all"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+thiserror = "1.0"
+log = "0.4"
+
+[[bin]]
+name = "netscope"
+path = "src/main.rs"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+opt-level = 3
+lto = true

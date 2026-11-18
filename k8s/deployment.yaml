@@ -1,0 +1,230 @@
+# NetScope Kubernetes Deployment
+# Production-ready manifest file
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: netscope-secrets
+type: Opaque
+stringData:
+  database-url: postgresql://netscope_user:netscope_pass@db.netscope.svc.cluster.local:5432/netscope
+  secret-key: ${SECRET_KEY}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netscope-config
+data:
+  DEBUG: "false"
+  LOG_LEVEL: INFO
+  MAX_CONCURRENT_HOSTS: "5"
+  SCAN_TIMEOUT_SECONDS: "3600"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netscope-backend
+  labels:
+    app: netscope
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: netscope-backend
+  template:
+    metadata:
+      labels:
+        app: netscope-backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/your-org/netscope-backend:latest
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: netscope-config
+            - secretRef:
+                name: netscope-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/extended
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 10
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values: [netscope-backend]
+                topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netscope-backend-service
+  labels:
+    app: netscope
+spec:
+  selector:
+    app: netscope-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netscope-frontend
+  labels:
+    app: netscope
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: netscope-frontend
+  template:
+    metadata:
+      labels:
+        app: netscope-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/your-org/netscope-frontend:latest
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netscope-frontend-service
+  labels:
+    app: netscope
+spec:
+  selector:
+    app: netscope-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netscope-ingress
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - netscope.example.com
+      secretName: netscope-tls
+  rules:
+    - host: netscope.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: netscope-frontend-service
+                port:
+                  number: 3000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: netscope-backend-service
+                port:
+                  number: 8000
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: netscope-backend-monitor
+  labels:
+    app: netscope
+spec:
+  selector:
+    matchLabels:
+      app: netscope-backend
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: netscope-rules
+  labels:
+    app: netscope
+spec:
+  groups:
+    - name: netscope.rules
+      rules:
+        - alert: HighErrorRate
+          expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate detected"
+            description: "The error rate is above 10% for the last 5 minutes."
+
+        - alert: HighLatency
+          expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High latency detected"
+            description: "The 95th percentile latency is above 1 second."
