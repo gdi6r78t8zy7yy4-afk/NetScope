@@ -32,7 +32,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm ci --frozen-lockfile
+          npm ci --frozen-lockfile --legacy-peer-deps
 
       - name: Build frontend
         run: |
