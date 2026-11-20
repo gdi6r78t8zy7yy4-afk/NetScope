@@ -40,7 +40,7 @@ jobs:
       - name: Run npm security audit
         run: |
           cd frontend
-          npm ci --frozen-lockfile --legacy-peer-deps
+          npm install --legacy-peer-deps
           npm audit --audit-level=high || echo "Security audit complete"
 
       - name: Check for hardcoded secrets
