@@ -4,6 +4,25 @@
     "es2021": true,
     "node": true
   },
+  "globals": {
+    "window": "readonly",
+    "document": "readonly",
+    "console": "readonly",
+    "fetch": "readonly",
+    "localStorage": "readonly",
+    "alert": "readonly",
+    "setTimeout": "readonly",
+    "clearTimeout": "readonly",
+    "setInterval": "readonly",
+    "clearInterval": "readonly",
+    "URL": "readonly",
+    "HTMLDivElement": "readonly",
+    "HTMLButtonElement": "readonly",
+    "HTMLInputElement": "readonly",
+    "HTMLParagraphElement": "readonly",
+    "HTMLHeadingElement": "readonly",
+    "ImportMeta": "readonly"
+  },
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
