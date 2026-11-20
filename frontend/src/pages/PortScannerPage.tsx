@@ -3,6 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../co
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { getApiEndpoint } from '@/config'
+import { Badge } from '../components/ui/badge'
+
+interface PortResult {
+  id: number
+  asset_id: number
+  port_number: number
+  protocol: string
+  state: 'open' | 'closed' | 'filtered'
+  service_name?: string
+  product?: string
+  version?: string
+  banner?: string
+  confidence_level: string
+  created_at?: string
+  updated_at?: string
+}
 
 interface Asset {
   id: number
@@ -107,7 +123,10 @@ export function PortScannerPage() {
     }
   }
 
-  const [portResults, setPortResults] = useState<Record<string, any>[]>([])
+  const [portResults, setPortResults] = useState<PortResult[]>([])
+  const [selectedHost, setSelectedHost] = useState<string | null>(null)
+  const [filterState, setFilterState] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'port' | 'state'>('port')
 
   async function startScan() {
     if (!target) {
@@ -240,73 +259,153 @@ export function PortScannerPage() {
 
         {/* Port Results */}
         {portResults.length > 0 && (
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Port Results for {target}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <Card>
-                  <CardContent className="pt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* Left: Stats Summary */}
+            <div className="lg:col-span-1 space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 rounded-lg bg-emerald-900/20 border border-emerald-800">
                     <div className="text-sm text-slate-400">Open Ports</div>
                     <div className="text-2xl font-bold text-emerald-400">
-                      {portResults.filter((p: any) => p.state === 'open').length}
+                      {portResults.filter((p) => p.state === 'open').length}
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
+                  </div>
+                  <div className="p-3 rounded-lg bg-red-900/20 border border-red-800">
                     <div className="text-sm text-slate-400">Closed Ports</div>
                     <div className="text-2xl font-bold text-red-400">
-                      {portResults.filter((p: any) => p.state === 'closed').length}
+                      {portResults.filter((p) => p.state === 'closed').length}
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
+                  </div>
+                  <div className="p-3 rounded-lg bg-yellow-900/20 border border-yellow-800">
                     <div className="text-sm text-slate-400">Filtered Ports</div>
                     <div className="text-2xl font-bold text-yellow-400">
-                      {portResults.filter((p: any) => p.state === 'filtered').length}
+                      {portResults.filter((p) => p.state === 'filtered').length}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-slate-800 text-slate-400">
-                    <tr>
-                      <th className="px-6 py-3">Port</th>
-                      <th className="px-6 py-3">Protocol</th>
-                      <th className="px-6 py-3">State</th>
-                      <th className="px-6 py-3">Service</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {portResults.map((result: any) => (
-                      <tr key={result.id} className="hover:bg-slate-800/50">
-                        <td className="px-6 py-4 font-mono">{result.port}</td>
-                        <td className="px-6 py-4">{result.protocol}</td>
-                        <td className="px-6 py-4">
-                          {result.state === 'open' ? (
-                            <span className="text-emerald-400">Open</span>
-                          ) : result.state === 'closed' ? (
-                            <span className="text-red-400">Closed</span>
-                          ) : (
-                            <span className="text-yellow-400">Filtered</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          {result.service_name || '-'}
-                          {result.product && <span className="text-slate-500"> ({result.product})</span>}
-                        </td>
-                      </tr>
+              {/* Filter Controls */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>Filters</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {['all', 'open', 'closed', 'filtered'].map((state) => (
+                      <Button
+                        key={state}
+                        variant={filterState === state ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setFilterState(state)}
+                      >
+                        {state.charAt(0).toUpperCase() + state.slice(1)}
+                      </Button>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sort Controls */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>Sort By</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Button
+                      variant={sortBy === 'port' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSortBy('port')}
+                    >
+                      Port
+                    </Button>
+                    <Button
+                      variant={sortBy === 'state' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSortBy('state')}
+                    >
+                      State
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right: Port List */}
+            <Card className="lg:col-span-3">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Port Results</CardTitle>
+                    {selectedHost && (
+                      <p className="text-sm text-slate-400">
+                        Host: {selectedHost} ({portResults.length} ports found)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs uppercase bg-slate-800 text-slate-400 sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3">Port</th>
+                        <th className="px-6 py-3">Protocol</th>
+                        <th className="px-6 py-3">State</th>
+                        <th className="px-6 py-3">Service</th>
+                        <th className="px-6 py-3">Version</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {portResults
+                        .filter((result) => filterState === 'all' || result.state === filterState)
+                        .sort((a, b) => {
+                          if (sortBy === 'port') return a.port_number - b.port_number
+                          // State sorting: open > filtered > closed
+                          const stateOrder = { open: 0, filtered: 1, closed: 2 }
+                          return stateOrder[a.state] - stateOrder[b.state]
+                        })
+                        .map((result: PortResult) => (
+                          <tr key={result.id} className="hover:bg-slate-800/50 transition-colors">
+                            <td className="px-6 py-4 font-mono">{result.port_number}</td>
+                            <td className="px-6 py-4 uppercase text-slate-500">{result.protocol}</td>
+                            <td className="px-6 py-4">
+                              {result.state === 'open' ? (
+                                <Badge variant="outline" className="border-emerald-500 text-emerald-400 bg-emerald-900/20">
+                                  Open
+                                </Badge>
+                              ) : result.state === 'closed' ? (
+                                <Badge variant="outline" className="border-red-500 text-red-400 bg-red-900/20">
+                                  Closed
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="border-yellow-500 text-yellow-400 bg-yellow-900/20">
+                                  Filtered
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              {result.service_name || '-'}
+                              {result.product && (
+                                <span className="text-slate-500 text-xs"> ({result.product})</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-slate-500 font-mono text-xs">
+                              {result.version || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

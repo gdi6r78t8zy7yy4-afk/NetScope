@@ -32,6 +32,8 @@ class Asset(Base):
     
     # Relationships
     vulnerabilities = relationship("AssetVulnerability", back_populates="asset")
+    ports = relationship("Port", back_populates="asset")
+
 
 
 class NetworkInterface(Base):
@@ -58,6 +60,7 @@ class Port(Base):
     __tablename__ = "ports"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False, index=True)
     port_number = Column(Integer, nullable=False)
     protocol = Column(String(10), default="tcp")
     state = Column(String(20), default="unknown")  # open, closed, filtered
@@ -66,6 +69,9 @@ class Port(Base):
     version = Column(String(100), nullable=True)
     banner = Column(Text, nullable=True)
     confidence_level = Column(String(20), default="unknown")
+    
+    # Relationships
+    asset = relationship("Asset", back_populates="ports")
     
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())

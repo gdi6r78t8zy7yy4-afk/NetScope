@@ -11,6 +11,8 @@ Tests cover:
 
 import pytest
 from ipaddress import IPv4Network, IPv6Network
+from pathlib import Path
+import os
 
 from app.core.target_validator import (
     TargetValidator,
@@ -254,11 +256,31 @@ class TestAuthorizationService:
     
     def test_get_authorized_scopes(self, monkeypatch):
         """Test getting authorized scopes."""
-        service = AuthorizationService(authorized_scopes=["192.168.1.0/24"])
-        scopes = service.get_authorized_scopes()
+        # Remove the config file temporarily to avoid loading from it
+        config_path = Path.cwd() / "authorized_scopes.json"
+        backend_config_path = Path.cwd() / "backend" / "authorized_scopes.json"
         
-        assert "192.168.1.0/24" in scopes
-        assert len(scopes) == 1
+        temp_move = []
+        if config_path.exists():
+            temp_path = str(config_path) + ".tmp"
+            os.rename(str(config_path), temp_path)
+            temp_move.append((config_path, temp_path))
+        if backend_config_path.exists():
+            temp_path = str(backend_config_path) + ".tmp"
+            os.rename(str(backend_config_path), temp_path)
+            temp_move.append((backend_config_path, temp_path))
+        
+        try:
+            service = AuthorizationService(authorized_scopes=["192.168.1.0/24"])
+            scopes = service.get_authorized_scopes()
+            
+            assert "192.168.1.0/24" in scopes
+            assert len(scopes) == 1
+        finally:
+            # Restore config files
+            for orig_path, temp_path in temp_move:
+                if os.path.exists(temp_path):
+                    os.rename(temp_path, str(orig_path))
     
     def test_is_authorized(self):
         """Test authorization check."""

@@ -79,10 +79,12 @@ class AuthorizationService:
                     config = json.load(f)
                     scopes = config.get("authorized_scopes", [])
                     self.authorized_scopes.extend(scopes)
+                # Deduplicate scopes after loading from config file
+                self.authorized_scopes = list(set(self.authorized_scopes))
                 logger.info(
                     "Loaded scopes from config file",
                     path=str(config_path),
-                    scope_count=len(scopes)
+                    scope_count=len(self.authorized_scopes)
                 )
             except Exception as e:
                 logger.warning("Failed to load config file", path=str(config_path), error=str(e))

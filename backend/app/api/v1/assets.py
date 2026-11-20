@@ -6,7 +6,7 @@ API endpoints for asset management.
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, case
 
 from app.database import get_async_session
 from app.models.asset import Asset, Port, HostProfile
@@ -162,6 +162,77 @@ async def get_asset_vulnerabilities(
         "ip_address": asset.ip_address,
         "vulnerability_count": asset.vulnerability_count,
         "kev_count": asset.kev_count
+    }
+
+
+@router.get("/assets/{asset_id}/stats")
+async def get_asset_stats(
+    asset_id: int,
+    db: AsyncSession = Depends(get_async_session)
+):
+    """
+    Get port statistics for an asset.
+    
+    Calculates and returns port scan statistics including counts
+    of open, closed, and filtered ports.
+    
+    Args:
+        asset_id: The unique identifier of the asset
+        
+    Returns:
+        dict: Port statistics including counts and services
+        
+    Raises:
+        HTTPException(404): If asset not found
+    """
+    from sqlalchemy import func
+    
+    # Get asset to verify it exists
+    result = await db.execute(
+        select(Asset).where(Asset.id == asset_id)
+    )
+    asset = result.scalar_one_or_none()
+    
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Get port statistics
+    result = await db.execute(
+        select(
+            func.count(Port.id).label('total'),
+            func.sum(case([(Port.state == 'open', 1)], else_=0)).label('open_count'),
+            func.sum(case([(Port.state == 'closed', 1)], else_=0)).label('closed_count'),
+            func.sum(case([(Port.state == 'filtered', 1)], else_=0)).label('filtered_count'),
+            func.count(Port.service_name).distinct().label('unique_services')
+        ).where(Port.asset_id == asset_id)
+    )
+    
+    stats = result.fetchone()
+    
+    # Get services list
+    result = await db.execute(
+        select(Port.service_name).where(Port.asset_id == asset_id).distinct().order_by(Port.service_name)
+    )
+    services = [s[0] for s in result.fetchall() if s[0]]
+    
+    # Get protocol breakdown
+    result = await db.execute(
+        select(Port.protocol, func.count(Port.id).label('count'))
+        .where(Port.asset_id == asset_id)
+        .group_by(Port.protocol)
+    )
+    protocols = {row[0]: row[1] for row in result.fetchall()}
+    
+    return {
+        "asset_id": asset.id,
+        "ip_address": asset.ip_address,
+        "total_ports": stats.total if stats else 0,
+        "open_ports": stats.open_count if stats and stats.open_count else 0,
+        "closed_ports": stats.closed_count if stats and stats.closed_count else 0,
+        "filtered_ports": stats.filtered_count if stats and stats.filtered_count else 0,
+        "unique_services": stats.unique_services if stats and stats.unique_services else 0,
+        "services": services[:20],  # Top 20 services
+        "protocol_breakdown": protocols,
     }
 
 
