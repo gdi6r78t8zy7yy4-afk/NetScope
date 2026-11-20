@@ -39,8 +39,10 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
+    "@typescript/typescript6": "^6.0.2",
     "@vitejs/plugin-react-swc": "^4.3.3",
     "autoprefixer": "^10.6.2",
     "eslint": "^10.0.1",
@@ -50,7 +52,7 @@
     "prettier": "^3.0.0",
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.3.8"
   },
   "peerDependencies": {
