@@ -206,6 +206,7 @@ class Settings(BaseSettings):
     # Scanning
     default_rate_limit: str = "medium"
     max_concurrent_hosts: int = 5
+    max_concurrent_scans: int = 3
     scan_timeout_seconds: int = 3600
     
     # Intelligence Sources

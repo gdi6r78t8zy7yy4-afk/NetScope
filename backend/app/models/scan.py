@@ -67,6 +67,7 @@ class ScanEvidence(Base):
     __tablename__ = "scan_evidence"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
+    scan_id = Column(Integer, ForeignKey("scans.id"), nullable=False)  # Link to scan
     evidence_type = Column(String(50), nullable=False)  # nmap_xml, arp_scan, etc.
     data = Column(Text, nullable=False)  # Raw scan output
     evidence_metadata = Column(Text, nullable=True)  # JSON metadata

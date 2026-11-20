@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Button Click</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        button {
+            background-color: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #059669; }
+        button.disabled {
+            background-color: #34d399;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Discovery Scan Button</h1>
+    
+    <div id="status">
+        <p>Status: Ready to test</p>
+    </div>
+    
+    <button id="testButton" onclick="runTest()">
+        Run Discovery Scan
+    </button>
+    
+    <script>
+        async function runTest() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<p>Status: Starting scan...</p>';
+            
+            const apiEndpoint = 'http://localhost:8000/api/v1';
+            
+            try {
+                const response = await fetch(`${apiEndpoint}/scans`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: 'Test Button Click',
+                        scan_type: 'discovery',
+                        target_cidr: '127.0.0.1/32',
+                        rate_limit: 'fast'
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (response.ok) {
+                    const scan = await response.json();
+                    console.log('Scan created:', scan);
+                    
+                    // Run the scan
+                    const runResponse = await fetch(`${apiEndpoint}/scans/${scan.id}/run`, {
+                        method: 'POST'
+                    });
+                    
+                    console.log('Run response status:', runResponse.status);
+                    
+                    if (runResponse.ok) {
+                        const runResult = await runResponse.json();
+                        console.log('Run result:', runResult);
+                        
+                        statusDiv.innerHTML = `
+                            <p>Status: Scan created and started!</p>
+                            <p>Scan ID: ${scan.id}</p>
+                            <p>Status: ${runResult.status}</p>
+                        `;
+                    } else {
+                        const error = await runResponse.json();
+                        console.error('Run error:', error);
+                        statusDiv.innerHTML = `<p>Status: Failed to run scan</p><pre>${JSON.stringify(error, null, 2)}</pre>`;
+                    }
+                } else {
+                    const error = await response.json();
+                    console.error('Create error:', error);
+                    statusDiv.innerHTML = `<p>Status: Failed to create scan</p><pre>${JSON.stringify(error, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -62,5 +62,14 @@ def test_root_response_format(client):
     assert isinstance(data["status"], str)
 
 
+def test_health_endpoint_v1(client):
+    """Test health check endpoint at /api/v1/health."""
+    response = client.get("/api/v1/health")
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

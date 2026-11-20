@@ -50,6 +50,9 @@ class ActiveDiscoveryEngine:
             rate_limit=rate_limit
         )
         
+        # Log debug info about the target
+        self.logger.debug("Discovery target details", target=target, rate_limit=rate_limit)
+        
         # Determine Nmap arguments based on rate limit
         speed_args = self._get_speed_args(rate_limit)
         
@@ -63,7 +66,15 @@ class ActiveDiscoveryEngine:
         
         result = await run_command(cmd, timeout=self.scan_timeout)
         
+        self.logger.debug(
+            "Nmap command completed",
+            returncode=result.get("returncode"),
+            stdout_length=len(result.get("stdout", "")) if result.get("stdout") else 0,
+            stderr_length=len(result.get("stderr", "")) if result.get("stderr") else 0
+        )
+        
         if result["returncode"] == 0:
+            self.logger.info("Nmap scan completed successfully")
             return self._parse_nmap_output(result["stdout"])
         elif result.get("timed_out"):
             self.logger.error("Nmap scan timed out", target=target)
@@ -92,6 +103,8 @@ class ActiveDiscoveryEngine:
     
     def _parse_nmap_output(self, output: str) -> Dict:
         """Parse Nmap discovery output."""
+        self.logger.debug("Parsing Nmap discovery output", output_length=len(output))
+        
         hosts = []
         
         current_host = {}
@@ -117,6 +130,8 @@ class ActiveDiscoveryEngine:
                         current_host["hostname"] = parts[0]
                     else:
                         current_host["ip_address"] = host_info
+                
+                self.logger.debug("Found Nmap scan report", ip=current_host.get("ip_address"))
             
             elif "MAC Address:" in line:
                 parts = line.split("MAC Address: ")
@@ -133,9 +148,12 @@ class ActiveDiscoveryEngine:
                         )
                     else:
                         current_host["mac_address"] = mac_info
+                
+                self.logger.debug("Found MAC address", mac=current_host.get("mac_address"))
             
             elif "Host is up" in line:
                 current_host["status"] = "up"
+                self.logger.debug("Host detected as up", ip=current_host.get("ip_address"))
             
             elif "Latency:" in line:
                 # Extract latency if available
@@ -147,6 +165,12 @@ class ActiveDiscoveryEngine:
         
         # Filter to only hosts with IP addresses
         valid_hosts = [h for h in hosts if "ip_address" in h]
+        
+        self.logger.info(
+            "Nmap discovery parsing complete",
+            total_hosts=len(hosts),
+            valid_hosts_found=len(valid_hosts)
+        )
         
         return {
             "discovery_method": "active_nmap",

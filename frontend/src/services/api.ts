@@ -6,7 +6,7 @@ interface ImportMetaEnv {
 
 declare const importMeta: { env: ImportMetaEnv }
 
-const API_BASE_URL = (importMeta as any).env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE_URL = (importMeta as any).env.VITE_API_URL || 'http://localhost:3000'
 
 export class ApiClient {
   private socket: Socket | null = null

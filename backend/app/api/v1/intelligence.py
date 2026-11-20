@@ -374,22 +374,51 @@ async def correlate_asset_vulnerabilities(
                 detail=f"No host profile found for asset {asset_id}"
             )
         
-        # Get all vulnerabilities
-        vuln_result = await db.execute(select(Vulnerability))
+        # Get all vulnerabilities with relationships loaded
+        from app.models.vulnerability import VulnerabilityKEV, VulnerabilityEPSS_History
+        
+        vuln_result = await db.execute(
+            select(Vulnerability)
+            .options(
+                selectinload(Vulnerability.kev_info),
+                selectinload(Vulnerability.epss_history)
+            )
+        )
         vulnerabilities = list(vuln_result.scalars().all())
         
-        # Convert to dict format
-        vuln_list = [
-            {
+        # Convert to dict format with proper field handling
+        vuln_list = []
+        for v in vulnerabilities:
+            # Get EPSS from latest history record
+            epss_score = None
+            if v.epss_history:
+                sorted_history = sorted(
+                    v.epss_history,
+                    key=lambda x: x.observed_at or datetime.min,
+                    reverse=True
+                )
+                if sorted_history[0].epss_score is not None:
+                    epss_score = sorted_history[0].epss_score
+            
+            vuln_dict = {
                 "cve_id": v.cve_id,
                 "description": v.description,
                 "cvss_score": v.cvss_score,
                 "severity": v.severity,
-                "is_kev": v.is_kev,
-                "epss_score": v.epss_score
             }
-            for v in vulnerabilities
-        ]
+            
+            # Add KEV info if available
+            if v.kev_info:
+                vuln_dict["is_kev"] = True
+                vuln_dict["kev_date_added"] = v.kev_info.date_added
+            else:
+                vuln_dict["is_kev"] = False
+            
+            # Add EPSS score if available
+            if epss_score is not None:
+                vuln_dict["epss_score"] = epss_score
+            
+            vuln_list.append(vuln_dict)
         
         # Correlate
         findings = await correlator.correlate(host_profile.to_dict(), vuln_list)

@@ -23,11 +23,17 @@ export function ScanHistoryPage() {
   }, [])
 
   async function fetchScans() {
+    console.log('=== Fetching Scan History ===');
     try {
       const response = await fetch(getApiEndpoint('/api/v1/scans'))
+      console.log('Fetch scans response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('All scans received:', data.length, 'scans');
         setScans(data)
+      } else {
+        console.error('Failed to fetch scans: HTTP', response.status);
       }
     } catch (error) {
       console.error('Failed to fetch scans:', error)

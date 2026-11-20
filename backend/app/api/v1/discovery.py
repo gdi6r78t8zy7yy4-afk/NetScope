@@ -46,14 +46,14 @@ async def save_asset_to_db(db: AsyncSession, host_data: dict) -> Optional[Asset]
     result = await db.execute(
         select(Asset).where(Asset.ip_address == ip_address)
     )
-    existing = result.scalar_one_or_none()
+    existing = result.scalars().first()
     
     # If not found by IP, check by MAC address for deduplication
     if not existing and mac_address:
         result = await db.execute(
             select(Asset).where(Asset.mac_address == mac_address)
         )
-        existing = result.scalar_one_or_none()
+        existing = result.scalars().first()
     
     if existing:
         # Update existing asset with new information

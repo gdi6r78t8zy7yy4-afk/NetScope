@@ -65,7 +65,17 @@ export function PortScannerPage() {
       const response = await fetch(getApiEndpoint('/api/v1/assets'))
       if (response.ok) {
         const data = await response.json()
-        setAssets(data)
+        // Filter out network addresses (.0) and broadcast addresses (.255)
+        const discoveredAssets = data.filter((asset: Asset) => {
+          const ipParts = asset.ip_address.split('.')
+          if (ipParts.length === 4) {
+            const lastOctet = parseInt(ipParts[3], 10)
+            // Exclude network address (x.x.x.0) and broadcast (x.x.x.255)
+            return lastOctet !== 0 && lastOctet !== 255
+          }
+          return true // Include non-IPv4 addresses as-is
+        })
+        setAssets(discoveredAssets)
       }
     } catch (error) {
       console.error('Failed to fetch assets:', error)

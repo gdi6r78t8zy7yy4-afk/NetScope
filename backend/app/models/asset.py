@@ -29,6 +29,9 @@ class Asset(Base):
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
+    
+    # Relationships
+    vulnerabilities = relationship("AssetVulnerability", back_populates="asset")
 
 
 class NetworkInterface(Base):
@@ -103,9 +106,13 @@ class AssetVulnerability(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
-    vulnerability_id = Column(String(50), ForeignKey("vulnerabilities.cve_id"), nullable=False)
+    vulnerability_id = Column(Integer, ForeignKey("vulnerabilities.id", ondelete="CASCADE"), nullable=False)
     confidence = Column(String(20), default="potential")  # confirmed, potential, unverified
     evidence = Column(Text, nullable=True)
+    
+    # Relationships
+    asset = relationship("Asset", back_populates="vulnerabilities")
+    # Note: Vulnerability model doesn't have asset_vulnerabilities relationship
     
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())

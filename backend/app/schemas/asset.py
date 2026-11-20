@@ -37,8 +37,8 @@ class AssetBase(BaseModel):
     @classmethod
     def validate_mac_address(cls, v: Optional[str]) -> Optional[str]:
         """Validate MAC address format."""
-        if v is None:
-            return v
+        if v is None or v == "":
+            return None
         
         # Validate MAC address format (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
         import re

@@ -24,17 +24,9 @@ const getApiUrl = (): string => {
     return apiUrl;
   }
   
-  // Fallback to localhost in development
-  if (import.meta.env.DEV) {
-    console.warn("WARNING: VITE_API_URL not set, using default http://localhost:8000");
-    return "http://localhost:8000";
-  }
-  
-  // In production, require the environment variable
-  throw new Error(
-    "VITE_API_URL environment variable must be set in production. " +
-    "Example: export VITE_API_URL=http://localhost:8000"
-  );
+  // Default to nginx proxy port 3000 in development, backend port 8000 for direct access
+  // In production builds, default to nginx proxy (port 3000) for CORS compatibility
+  return "http://localhost:3000";
 };
 
 // Validate URL format

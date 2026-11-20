@@ -5,15 +5,21 @@ Main API routes file that registers all endpoints.
 """
 
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
 
 from app.api.v1 import router as v1_router
 
 
-# Main API router
+# Main API router - provides v1 endpoints at /api/v1/
 api_router = APIRouter()
 
+# Include all versioned routers first
+api_router.include_router(v1_router)
 
+# Include intelligence router
+from app.api.v1.intelligence import router as intelligence_router
+api_router.include_router(intelligence_router)
+
+# Root endpoint (serves at /)
 @api_router.get("/")
 async def root():
     """Root endpoint."""
@@ -24,6 +30,7 @@ async def root():
     }
 
 
+# Health check endpoint at /health (after v1_router to ensure it's registered)
 @api_router.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -43,12 +50,3 @@ async def api_info():
             "/api/v1/vulnerabilities"
         ]
     }
-
-
-# Include all versioned routers
-from app.api.v1 import router as v1_router
-api_router.include_router(v1_router)
-
-# Include intelligence router
-from app.api.v1.intelligence import router as intelligence_router
-api_router.include_router(intelligence_router)
