@@ -35,8 +35,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm install "npm@>=10 <12" -g
-          npm ci --legacy-peer-deps || true
+          npm ci --frozen-lockfile || true
 
       - name: Build frontend
         run: |
