@@ -19,12 +19,12 @@ jobs:
 
       - name: Set up Docker Compose
         run: |
-          docker-compose --version
+          docker compose version
           docker --version
 
       - name: Build Docker images
         run: |
-          docker-compose build
+          docker compose build
 
       - name: Tag images for registry
         run: |
@@ -44,13 +44,13 @@ jobs:
         run: |
           echo "Production deployment requires manual approval"
           echo "This workflow runs only when tags are pushed (v*)"
-          docker-compose --version
-          echo "To deploy: docker-compose pull && docker-compose up -d"
+          docker compose version
+          echo "To deploy: docker compose pull && docker compose up -d"
 
       - name: Verify deployment
         if: always()
         run: |
           echo "Deployment verification:"
-          docker-compose ps
+          docker compose ps
           curl -f http://localhost:8000/health || echo "Backend health check skipped"
           curl -f http://localhost:3000/health || echo "Frontend health check skipped"
