@@ -30,7 +30,7 @@ jobs:
           cd backend
           pip install safety
           pip install -r requirements.txt
-          safety check --full-report
+          safety scan --full-report
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
