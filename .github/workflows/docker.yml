@@ -35,7 +35,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm install npm@latest -g
+          npm install "npm@>=10 <12" -g
           npm ci --legacy-peer-deps || true
 
       - name: Build frontend
