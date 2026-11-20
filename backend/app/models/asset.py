@@ -26,6 +26,10 @@ class Asset(Base):
     vendor = Column(String(255), nullable=True)
     confidence_level = Column(String(20), default="unknown")
     
+    # Scan tracking for auto-cleanup
+    last_seen_scan_id = Column(Integer, nullable=True)
+    consecutive_absent_count = Column(Integer, default=0)
+    
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())

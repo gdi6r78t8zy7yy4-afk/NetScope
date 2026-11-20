@@ -25,8 +25,6 @@ from app.core.validators import parse_and_validate_ports, validate_cidr
 from app.core.auth import get_current_user, User
 from app.core.config import settings
 
-logger = structlog.get_logger(__name__)
-
 # For local development, allow unauthenticated scans
 def require_auth_or_local(user: User = Depends(get_current_user)) -> User:
     """Allow unauthenticated access for local development."""
@@ -417,39 +415,44 @@ async def run_scan(
                     existing_asset = existing_result.scalars().first()
                     
                     if existing_asset:
+                        # Update existing asset - mark as seen in current scan
+                        existing_asset.last_seen_scan_id = scan.id
+                        existing_asset.consecutive_absent_count = 0  # Reset absent count
+                        
                         assets_skipped_duplicate += 1
                         logger.debug(
-                            "Asset already exists, skipping",
+                            "Asset already exists, updating scan tracking",
                             ip=ip,
                             hostname=hostname
                         )
-                        continue
-                    
-                    # Create new asset
-                    mac = host.get("mac_address") or host.get("mac", "")
-                    if mac == "":
-                        mac = None
-                    device_type = host.get("device_type") or host.get("device") or ""
-                    operating_system = host.get("operating_system") or host.get("os") or ""
-                    confidence_level = host.get("confidence") or host.get("confidence_level") or "low"
-                    
-                    new_asset = Asset(
-                        ip_address=ip,
-                        mac_address=mac,
-                        hostname=hostname,
-                        device_type=device_type,
-                        operating_system=operating_system,
-                        confidence_level=confidence_level
-                    )
-                    db.add(new_asset)
-                    assets_created += 1
-                    
-                    logger.info(
-                        "Created new asset from scan",
-                        ip=ip,
-                        hostname=hostname,
-                        mac_address=mac
-                    )
+                    else:
+                        # Create new asset
+                        mac = host.get("mac_address") or host.get("mac", "")
+                        if mac == "":
+                            mac = None
+                        device_type = host.get("device_type") or host.get("device") or ""
+                        operating_system = host.get("operating_system") or host.get("os") or ""
+                        confidence_level = host.get("confidence") or host.get("confidence_level") or "low"
+                        
+                        new_asset = Asset(
+                            ip_address=ip,
+                            mac_address=mac,
+                            hostname=hostname,
+                            device_type=device_type,
+                            operating_system=operating_system,
+                            confidence_level=confidence_level,
+                            last_seen_scan_id=scan.id,  # Track first seen scan
+                            consecutive_absent_count=0
+                        )
+                        db.add(new_asset)
+                        assets_created += 1
+                        
+                        logger.info(
+                            "Created new asset from scan",
+                            ip=ip,
+                            hostname=hostname,
+                            mac_address=mac
+                        )
                 
                 await db.commit()
                 
@@ -460,6 +463,40 @@ async def run_scan(
                     assets_skipped_duplicate=assets_skipped_duplicate,
                     assets_skipped_no_ip=assets_skipped_no_ip
                 )
+            
+            # Track hosts that were absent from this scan (increment absent count)
+            if discovered_hosts:
+                # Get all IPs found in this scan
+                current_scan_ips = {host.get("ip_address") for host in discovered_hosts if host.get("ip_address")}
+                
+                # Find ALL assets that exist
+                all_assets_result = await db.execute(select(Asset))
+                all_assets = all_assets_result.scalars().all()
+                
+                for asset in all_assets:
+                    # If this asset's IP is not in current scan results, increment absent count
+                    if asset.ip_address not in current_scan_ips:
+                        # Only increment if this asset was previously seen (has a last_seen_scan_id)
+                        if asset.last_seen_scan_id is not None:
+                            asset.consecutive_absent_count += 1
+                            
+                            logger.debug(
+                                "Asset absent from current scan",
+                                ip_address=asset.ip_address,
+                                consecutive_absent_count=asset.consecutive_absent_count
+                            )
+                    else:
+                        # This asset was found in this scan - reset absent count
+                        if asset.consecutive_absent_count > 0:
+                            asset.consecutive_absent_count = 0
+                            
+                            logger.debug(
+                                "Asset found in current scan (reset absent count)",
+                                ip_address=asset.ip_address
+                            )
+                
+                # Commit absent count updates
+                await db.commit()
             
             # Save discovery results as evidence
             if discovered_hosts:
@@ -785,6 +822,79 @@ async def delete_schedule(schedule_id: int):
         dict: Deletion confirmation message
     """
     return {"message": f"Schedule {schedule_id} deleted"}
+
+
+@router.post("/scans/cleanup")
+async def cleanup_absent_hosts(
+    max_absent_days: int = 3,
+    user: User = Depends(require_auth_or_local),
+    db: AsyncSession = Depends(get_async_session)
+):
+    """
+    Cleanup hosts that have been absent from scans for a specified number of scans.
+    
+    Removes hosts that haven't appeared in the last N scans.
+    
+    Args:
+        max_absent_days: Number of consecutive absent scans before removal (default: 3)
+        user: Authenticated user with write permissions
+        
+    Returns:
+        dict: Cleanup results including removed hosts count
+    """
+    # Check write permissions
+    if "write" not in (user.scopes or []):
+        raise HTTPException(
+            status_code=403,
+            detail="User does not have write permissions"
+        )
+    
+    try:
+        from datetime import timedelta
+        from app.models.asset import Asset
+        
+        # Find hosts that have been absent for max_absent_days consecutive scans
+        result = await db.execute(
+            select(Asset).where(
+                Asset.consecutive_absent_count >= max_absent_days
+            )
+        )
+        hosts_to_remove = list(result.scalars().all())
+        
+        removed_count = 0
+        asset_ips_removed = []
+        
+        for host in hosts_to_remove:
+            ip_address = host.ip_address
+            # Remove the host and associated data
+            await db.delete(host)
+            removed_count += 1
+            asset_ips_removed.append(ip_address)
+            
+            logger.info(
+                "Removed absent host during cleanup",
+                ip_address=ip_address,
+                consecutive_absent_count=host.consecutive_absent_count
+            )
+        
+        await db.commit()
+        
+        logger.info(
+            "Cleanup completed",
+            hosts_removed=removed_count,
+            max_absent_days=max_absent_days
+        )
+        
+        return {
+            "status": "success",
+            "hosts_removed": removed_count,
+            "max_absent_days": max_absent_days,
+            "removed_host_ips": asset_ips_removed
+        }
+        
+    except Exception as e:
+        logger.error("Cleanup failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 
 @router.get("/scans/queue/stats")

@@ -52,6 +52,16 @@ class AssetBase(BaseModel):
     os_version: Optional[str] = None
     vendor: Optional[str] = None
     confidence_level: str = "unknown"
+    
+    # Scan tracking for auto-cleanup (read-only)
+    last_seen_scan_id: Optional[int] = Field(
+        None,
+        description="ID of the scan that last found this host"
+    )
+    consecutive_absent_count: int = Field(
+        0,
+        description="Number of consecutive scans this host has been absent"
+    )
 
 
 class AssetCreate(AssetBase):

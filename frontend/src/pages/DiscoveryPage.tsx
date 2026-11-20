@@ -213,88 +213,7 @@ function StatCard({ label, value, color = 'slate', highlight = false }: { label:
   )
 }
 
-// Scan history component to show completed scans
-function ScanHistory({ scans, onSelectAsset }: { scans: Scan[], onSelectAsset?: (assetId: number) => void }) {
-  console.log('=== ScanHistory Component Render ===', 'scans:', scans.length);
-  
-  if (scans.length === 0) {
-    console.log('=== ScanHistory: No scans to display ===');
-    return null
-  }
 
-  const getScanDuration = (scan: Scan): string | null => {
-    if (!scan.started_at || !scan.completed_at) return null
-    const start = new Date(scan.started_at).getTime()
-    const end = new Date(scan.completed_at).getTime()
-    const durationMs = end - start
-    if (durationMs < 1000) return `${Math.round(durationMs)}ms`
-    const durationSec = (durationMs / 1000).toFixed(1)
-    return `${durationSec}s`
-  }
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>Scan History ({scans.length})</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-slate-800 text-slate-400">
-              <tr>
-                <th className="px-6 py-3">Scan Name</th>
-                <th className="px-6 py-3">Type</th>
-                <th className="px-6 py-3">Target</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Hosts Found</th>
-                <th className="px-6 py-3">Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scans.map((scan) => (
-                <tr
-                  key={scan.id}
-                  className="border-b border-slate-800 hover:bg-emerald-900/20 transition-colors"
-                >
-                  <td className="px-6 py-4 font-medium">{scan.name || 'Unnamed Scan'}</td>
-                  <td className="px-6 py-4 capitalize">{scan.scan_type.replace('_', ' ')}</td>
-                  <td className="px-6 py-4 font-mono">{scan.target_cidr}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        scan.status === 'completed'
-                          ? 'bg-emerald-900 text-emerald-200'
-                          : scan.status === 'running'
-                            ? 'bg-blue-900 text-blue-200'
-                            : scan.status === 'failed'
-                              ? 'bg-red-900 text-red-200'
-                              : scan.status === 'cancelled'
-                                ? 'bg-yellow-900 text-yellow-200'
-                                : 'bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {scan.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {scan.hosts_found !== undefined && scan.hosts_found > 0
-                      ? <span className="font-semibold text-emerald-400">{scan.hosts_found}</span>
-                      : '-'}
-                  </td>
-                  <td className="px-6 py-4">
-                    {scan.started_at && scan.completed_at
-                      ? getScanDuration(scan)
-                      : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 export function DiscoveryPage() {
   const [assets, setAssets] = useState<Asset[]>([])
@@ -520,10 +439,13 @@ export function DiscoveryPage() {
         </Card>
       )}
 
-      {/* Scan History Section */}
+      {/* Scan History Section - REMOVED: Moved to dedicated Scan History page */}
+      {/* TODO: Remove this commented code when Scan History page is ready */}
+      {/* 
       {completedScans.length > 0 && (
         <ScanHistory scans={completedScans} onSelectAsset={(assetId) => setSelectedAssetId(assetId)} />
       )}
+      */}
 
       {/* Sidebar Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
