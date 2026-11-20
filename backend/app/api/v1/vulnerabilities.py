@@ -306,14 +306,17 @@ async def get_vuln_stats(db: AsyncSession = Depends(get_async_session)):
 
 @router.post("/intelligence/sync")
 async def sync_intelligence(
+    db: AsyncSession = Depends(get_async_session),
     user: User = Depends(require_auth)
 ):
-    """Sync vulnerability intelligence from all sources.
+    """Sync vulnerability intelligence from all sources and persist to database.
     
     Triggers sync for:
     - CISA KEV catalog
     - NVD CVE database  
     - EPSS scores
+    
+    Persists all data to the local database with proper deduplication.
     
     Returns combined results from all three sources.
     """
@@ -327,12 +330,12 @@ async def sync_intelligence(
     engine = IntelSyncEngine()
     
     try:
-        # This already runs all three syncs in parallel via async.gather
-        result = await engine.sync_all()
+        # This calls sync_to_database which persists all data to the database
+        result = await engine.sync_to_database(db)
         
         return {
             "status": "completed",
-            "results": result
+            **result
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

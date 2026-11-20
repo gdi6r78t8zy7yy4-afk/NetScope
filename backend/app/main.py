@@ -178,6 +178,38 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Failed to start scan queue processor: {e}")
     
+    # Start the intelligence sync worker
+    try:
+        from app.workers.intelligence_sync import IntelligenceSyncWorker
+        intelligence_worker = IntelligenceSyncWorker(update_interval=86400)  # 24 hours
+        await intelligence_worker.start()
+        print("Intelligence sync worker started")
+        
+        # Trigger initial sync on startup if database is empty
+        from app.engines.vulnerability.intelligence import IntelligenceSync as IntelSyncEngine
+        
+        # Get database session and check vulnerability count
+        from sqlalchemy import select, func
+        from app.models.vulnerability import Vulnerability
+        
+        async with get_async_session() as db:
+            vuln_result = await db.execute(select(func.count(Vulnerability.id)))
+            vuln_count = vuln_result.scalar_one()
+        
+        if vuln_count == 0:
+            print("No vulnerabilities found in database. Triggering initial sync...")
+            try:
+                async with get_async_session() as db:
+                    engine = IntelSyncEngine()
+                    result = await engine.sync_to_database(db)
+                    print(f"Initial intelligence sync completed: {result}")
+            except Exception as e:
+                print(f"Initial sync failed (will retry in background): {e}")
+        else:
+            print(f"Found {vuln_count} vulnerabilities in database. Skipping initial sync.")
+    except Exception as e:
+        print(f"Failed to start intelligence sync worker: {e}")
+    
     yield
 
     # Stop the scan queue processor
@@ -188,8 +220,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Failed to stop scan queue processor: {e}")
     
+    # Stop the intelligence sync worker
+    try:
+        from app.workers.intelligence_sync import IntelligenceSyncWorker
+        intelligence_worker = IntelligenceSyncWorker(update_interval=86400)
+        await intelligence_worker.stop()
+        print("Intelligence sync worker stopped")
+    except Exception as e:
+        print(f"Failed to stop intelligence sync worker: {e}")
+    
+    # Stop the database engine
+    try:
+        from app.database import get_sync_engine
+        sync_engine = get_sync_engine()
+        sync_engine.dispose()
+        print("Database engine disposed")
+    except Exception as e:
+        print(f"Failed to dispose database engine: {e}")
+    
     print("Shutting down application")
-    await engine.dispose()
+    
 
 
 app = FastAPI(

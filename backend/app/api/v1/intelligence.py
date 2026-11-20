@@ -4,7 +4,7 @@
 API endpoints for vulnerability intelligence data.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -319,6 +319,67 @@ async def get_intelligence_status(
             for s in syncs
         ]
     }
+
+
+@router.post("/sync", dependencies=[Depends(require_auth)])
+async def sync_intelligence(
+    db: AsyncSession = Depends(get_async_session),
+    sources: list[str] = Query(default=["all"], description="Sources to sync: cisa_kev, nvd_cve, epss, or all")
+):
+    """
+    Sync vulnerability intelligence from one or more sources.
+    
+    Triggers sync for specified sources and persists data to the database.
+    
+    Args:
+        sources: List of sources to sync (default: ["all"])
+        
+    Returns:
+        Combined results from all synced sources
+    """
+    engine = IntelSyncEngine()
+    
+    try:
+        # Sync specific sources or all
+        if "all" in sources:
+            result = await engine.sync_to_database(db)
+        else:
+            # Sync specific sources
+            results = {}
+            
+            if "cisa_kev" in sources:
+                kev_result = await engine.cisa_client.sync_to_database(
+                    db_session=db,
+                    vulnerability_model=Vulnerability,
+                    vulnerability_kev_model=None,
+                    intelligence_sync_model=IntelligenceSync
+                )
+                results["cisa_kev"] = kev_result
+                
+            if "nvd_cve" in sources:
+                nvd_result = await engine.nvd_client.sync_to_database(
+                    db_session=db,
+                    vulnerability_model=Vulnerability,
+                    intelligence_sync_model=IntelligenceSync
+                )
+                results["nvd_cve"] = nvd_result
+                
+            if "epss" in sources:
+                epss_result = await engine.epss_client.sync_to_database(
+                    db_session=db,
+                    vulnerability_model=Vulnerability,
+                    intelligence_sync_model=IntelligenceSync
+                )
+                results["epss"] = epss_result
+            
+            result = {"synced": results, "success": True}
+        
+        return {
+            "status": "completed",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/correlate/{asset_id}", dependencies=[Depends(require_auth)])

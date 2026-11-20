@@ -43,7 +43,29 @@ AsyncSessionLocal = sessionmaker(
 
 
 # Export engine for backwards compatibility
-engine = get_engine()
+# Create a sync Engine for disposal purposes (the async engine is from create_async_engine)
+_sync_engine = None
+
+def get_sync_engine() -> "Engine":
+    """Get the underlying sync engine for disposal."""
+    global _sync_engine
+    if _sync_engine is None:
+        from sqlalchemy import create_engine, text
+        # Create a sync engine for disposal operations
+        db_url = settings.database_url
+        if db_url.startswith("postgresql+asyncpg://"):
+            # Extract the non-async part for sync engine
+            db_url_sync = db_url.replace("postgresql+asyncpg://", "postgresql://")
+        else:
+            db_url_sync = db_url
+        _sync_engine = create_engine(db_url_sync)
+    return _sync_engine
+
+# Store the original engine
+async_engine = get_engine()
+
+# Export for backwards compatibility
+engine = async_engine
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
