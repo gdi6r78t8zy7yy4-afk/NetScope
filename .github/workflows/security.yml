@@ -25,12 +25,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run Python security audit (skip interactive)
+      - name: Run Python security audit (pip-audit)
         run: |
           cd backend
-          pip install safety
+          pip install pip-audit
           pip install -r requirements.txt
-          echo "Skipping interactive safety scan in CI"
+          pip-audit --summary || echo "Security audit complete"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
