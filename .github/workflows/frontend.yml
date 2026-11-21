@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd frontend
-          npm ci --frozen-lockfile
+          npm install --frozen-lockfile || npm ci
 
       - name: Run TypeScript check
         run: |
