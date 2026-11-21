@@ -59,7 +59,7 @@ jobs:
         run: |
           cd backend
           pip install bandit
-          bandit -r app/ --exclude ./tests,./venv --exclude migrations
+          bandit -r app/ --exclude ./tests,./venv,./migrations -c .bandit
 
       - name: Run Dockerfile best practices check
         run: |

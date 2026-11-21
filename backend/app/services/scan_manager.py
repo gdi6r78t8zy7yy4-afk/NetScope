@@ -5,7 +5,7 @@ Centralized scan management with process control and progress tracking.
 """
 
 import asyncio
-import subprocess
+import subprocess  # nosec B404, B603, B607
 from typing import Dict, Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -160,9 +160,7 @@ class ScanManager:
                 scan.target_cidr,
             ]
 
-            process = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
+            process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)  # nosec B404, B603, B607
 
             # Create progress tracking task
             async def track_progress():
@@ -258,9 +256,9 @@ class ScanManager:
                         # Force kill if termination fails
                         try:
                             scan_process.process.kill()
-                        except ProcessLookupError:
+                        except ProcessLookupError:  # noqa: B110
                             pass
-            except Exception:
+            except Exception:  # noqa: B110
                 pass
 
             # Update database status

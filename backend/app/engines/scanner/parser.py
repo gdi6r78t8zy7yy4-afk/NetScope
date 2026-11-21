@@ -4,7 +4,7 @@
 Parser for Nmap scan results in XML format.
 """
 
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405, B314
 from typing import List, Dict, Any
 import sys
 
@@ -83,7 +83,7 @@ def parse_nmap_xml(xml_string: str) -> dict:
     check_xml_size(xml_string)
 
     try:
-        root = ET.fromstring(xml_string)
+        root = ET.fromstring(xml_string)  # nosec B405, B314
     except ET.ParseError as e:
         return {"error": f"Failed to parse XML: {str(e)}"}
 

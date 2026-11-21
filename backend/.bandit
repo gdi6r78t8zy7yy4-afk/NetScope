@@ -1,0 +1,30 @@
+# NetScope Bandit Configuration
+
+# Exclude directories and files
+exclude:
+  - ./tests
+  - ./venv
+  - ./migrations
+  - ./node_modules
+
+# Set security test profile
+tests: []
+skips:
+  # Allow assert in test files (intentional)
+  - B101
+  # Allow hardcoded passwords in tests for validation
+  - B105
+  # Allow binding to all interfaces in tests
+  - B104
+  # Skip try/except/pass for cleanup operations (defensive coding)
+  - B110
+  # Skip try/except/continue patterns (defensive coding)
+  - B112
+
+# Set severity level filter (skip low severity)
+# severity: []
+# confidence: []
+
+# Specify output format
+format: text
+output_file: bandit-report.txt

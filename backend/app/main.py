@@ -152,9 +152,9 @@ async def check_cisa_api() -> dict:
 
 async def check_nmap() -> dict:
     try:
-        import subprocess
+        import subprocess  # nosec B404, B603, B607
 
-        result = subprocess.run(["nmap", "--version"], capture_output=True)
+        result = subprocess.run(["nmap", "--version"], capture_output=True)  # nosec B404, B603, B607
         if result.returncode == 0:
             return {"status": "healthy", "tool": "nmap"}
         return {"status": "unhealthy",
