@@ -19,6 +19,10 @@ class BaseModel(DeclarativeBase):
     pass
 
 
+# Alias BaseModel as Base for backwards compatibility
+Base = BaseModel
+
+
 class TimestampModel:
     """Mixin class with timestamp columns (not mapped)."""
 
