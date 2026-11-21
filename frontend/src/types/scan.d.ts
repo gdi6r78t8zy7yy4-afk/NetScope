@@ -17,5 +17,5 @@ export interface ScanProgress {
 export interface ScanResult {
   scanId: number
   status: 'completed' | 'failed' | 'cancelled'
-  findings?: any[]
+  findings?: Record<string, unknown>[]
 }

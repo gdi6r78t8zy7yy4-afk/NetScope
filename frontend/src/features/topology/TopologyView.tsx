@@ -1,9 +1,17 @@
 import { useEffect, useRef } from 'react'
 import cytoscape from 'cytoscape'
 
+interface CytoscapeNode {
+  data: { id: string; label: string }
+}
+
+interface CytoscapeEdge {
+  data: { source: string; target: string }
+}
+
 interface TopologyViewProps {
-  nodes: any[]
-  edges: any[]
+  nodes: CytoscapeNode[]
+  edges: CytoscapeEdge[]
 }
 
 export function TopologyView({ nodes, edges }: TopologyViewProps) {

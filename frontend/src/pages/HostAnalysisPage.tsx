@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { getApiEndpoint } from '@/config'
 
+type AssetData = Record<string, unknown>
+
 export function HostAnalysisPage() {
   const [ipAddress, setIpAddress] = useState('')
-  const [assetData, setAssetData] = useState<Record<string, any>>({})
+  const [assetData, setAssetData] = useState<AssetData>({})
 
   useEffect(() => {
     // Check if an asset was selected from Asset List
@@ -24,7 +26,7 @@ export function HostAnalysisPage() {
         
         localStorage.removeItem('selectedAsset')
       } catch (e) {
-        console.error('Failed to parse saved asset:', e)
+        console.warn('Failed to parse saved asset:', e)
       }
     }
   }, [])
@@ -41,7 +43,7 @@ export function HostAnalysisPage() {
         const portsResponse = await fetch(getApiEndpoint(`/api/v1/assets/${assetId}/ports`))
         if (portsResponse.ok) {
           const portsData = await portsResponse.json()
-          console.log('Port scan results:', portsData)
+          console.warn('Port scan results:', portsData)
         }
         
         // Fetch vulnerability info
@@ -56,7 +58,7 @@ export function HostAnalysisPage() {
     }
   }
 
-  const [vulnerabilityData, setVulnerabilityData] = useState<Record<string, any> | null>(null)
+  const [vulnerabilityData, setVulnerabilityData] = useState<AssetData | null>(null)
 
   async function fetchAssetByIp(ipAddress: string) {
     try {

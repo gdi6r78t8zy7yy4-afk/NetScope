@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 declare module 'react/jsx-runtime' {
-  const namespace: any;
+  const namespace: Record<string, unknown>;
   export = namespace;
 }
 

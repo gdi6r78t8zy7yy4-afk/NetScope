@@ -44,12 +44,12 @@ export function DashboardPage() {
       ])
 
       // Using underscore prefix to indicate unused variable
-      let _scansData = []
+      let _scansData: { data?: unknown }[] = []
       if (scansResponse.ok) {
         _scansData = await scansResponse.json()
       }
 
-      let vulnData: any[] = []
+      let vulnData: { severity?: string }[] = []
       if (vulnResponse.ok) {
         vulnData = await vulnResponse.json()
       }
@@ -59,7 +59,7 @@ export function DashboardPage() {
         totalDevices: assetsData.length,
         activeDevices: assetsData.filter((a: Asset) => a.ip_address).length,
         vulnerabilities: vulnData.length,
-        kevFindings: vulnData.filter((v: any) => v.severity === 'critical' || v.severity === 'high').length
+        kevFindings: vulnData.filter((v: { severity?: string }) => v.severity === 'critical' || v.severity === 'high').length
       })
     } catch (error) {
       console.error('Failed to fetch data:', error)

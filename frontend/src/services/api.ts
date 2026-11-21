@@ -6,7 +6,7 @@ interface ImportMetaEnv {
 
 declare const importMeta: { env: ImportMetaEnv }
 
-const API_BASE_URL = (importMeta as any).env.VITE_API_URL || 'http://localhost:3000'
+const API_BASE_URL = importMeta.env.VITE_API_URL || 'http://localhost:3000'
 
 export class ApiClient {
   private socket: Socket | null = null
@@ -18,10 +18,10 @@ export class ApiClient {
       throw new Error(`API error: ${response.status}`)
     }
     
-    return response.json()
+    return response.json() as Promise<T>
   }
 
-  async post<T>(path: string, data?: any): Promise<T> {
+  async post<T>(path: string, data?: unknown): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -32,7 +32,7 @@ export class ApiClient {
       throw new Error(`API error: ${response.status}`)
     }
     
-    return response.json()
+    return response.json() as Promise<T>
   }
 
   connectWebSocket(): Socket {
