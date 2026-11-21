@@ -4,6 +4,7 @@
 API version 1 endpoints.
 """
 
+from app.api.v1 import networks, discovery, scans, assets, vulnerabilities
 from fastapi import APIRouter, Depends
 import structlog
 
@@ -12,7 +13,6 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["v1"])
 
 # Import and include all route modules
-from app.api.v1 import networks, discovery, scans, assets, vulnerabilities
 
 # Include routers with authentication middleware for sensitive endpoints
 router.include_router(networks.router)

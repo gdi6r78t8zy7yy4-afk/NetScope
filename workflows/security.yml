@@ -45,11 +45,11 @@ jobs:
 
       - name: Check for hardcoded secrets
         run: |
-          if grep -r "api-key-change-in-production" backend/ .github/; then
+          if grep -r --exclude="*.example" "api-key-change-in-production" backend/ .github/ 2>/dev/null; then
             echo "ERROR: Found placeholder secret in code!"
             exit 1
           fi
-          if grep -r "change-me-in-production" backend/ .github/; then
+          if grep -r --exclude="*.example" "change-me-in-production" backend/ .github/ 2>/dev/null; then
             echo "ERROR: Found placeholder secret in code!"
             exit 1
           fi

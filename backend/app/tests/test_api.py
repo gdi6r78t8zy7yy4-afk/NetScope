@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 def client():
     """Create test client."""
     from app.main import app
-    
+
     with TestClient(app) as test_client:
         yield test_client
 
@@ -20,7 +20,7 @@ def client():
 def test_root_endpoint(client):
     """Test root endpoint returns correct version."""
     response = client.get("/")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "name" in data
@@ -31,7 +31,7 @@ def test_root_endpoint(client):
 def test_health_endpoint(client):
     """Test health check endpoint."""
     response = client.get("/health")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
@@ -40,7 +40,7 @@ def test_health_endpoint(client):
 def test_api_info_endpoint(client):
     """Test API information endpoint."""
     response = client.get("/api-info")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "version" in data
@@ -51,11 +51,11 @@ def test_api_info_endpoint(client):
 def test_root_response_format(client):
     """Test root endpoint response format."""
     response = client.get("/")
-    
+
     assert response.status_code == 200
-    
+
     data = response.json()
-    
+
     # Check required fields
     assert isinstance(data["name"], str)
     assert isinstance(data["version"], str)
@@ -65,7 +65,7 @@ def test_root_response_format(client):
 def test_health_endpoint_v1(client):
     """Test health check endpoint at /api/v1/health."""
     response = client.get("/api/v1/health")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"

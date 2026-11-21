@@ -9,7 +9,7 @@ from app.utils.export import (
     validate_export_data,
     export_to_csv,
     export_to_json,
-    generate_pdf_report
+    generate_pdf_report,
 )
 
 __all__ = [
@@ -17,5 +17,5 @@ __all__ = [
     "validate_export_data",
     "export_to_csv",
     "export_to_json",
-    "generate_pdf_report"
+    "generate_pdf_report",
 ]

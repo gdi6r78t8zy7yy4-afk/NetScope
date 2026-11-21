@@ -1,3 +1,4 @@
+from app.database.base import Base
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -19,7 +20,6 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.database.base import Base
 from app.models.asset import Asset, NetworkInterface  # noqa: F401
 from app.models.network import Network, Subnet  # noqa: F401
 from app.models.scan import Scan, ScanTarget  # noqa: F401
@@ -61,7 +61,7 @@ def run_migrations_offline() -> None:
 def do_run_migrations(connection: AsyncConnection) -> None:
     """
     Run migrations for async engine.
-    
+
     This is a helper function that configures and runs migrations
     with an async connection.
     """
@@ -99,4 +99,5 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     import asyncio
+
     asyncio.run(run_migrations_online())

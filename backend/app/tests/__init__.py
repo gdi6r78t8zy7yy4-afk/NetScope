@@ -35,17 +35,17 @@ def create_mock_vulnerability(cve_id: str = "CVE-2024-1234", **kwargs) -> dict:
 
 class AsyncMockMocker:
     """Helper for async mocking."""
-    
+
     @staticmethod
     def create_mock_session():
         """Create a mock database session."""
         session = AsyncMock()
-        
+
         # Setup common methods
         session.add = MagicMock()
         session.commit = AsyncMock()
         session.refresh = AsyncMock()
-        
+
         return session
 
 

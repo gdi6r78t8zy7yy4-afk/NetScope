@@ -15,7 +15,7 @@ from app.schemas.asset import (
     Asset as AssetSchema,
     AssetCreate,
     Port as PortSchema,
-    HostProfile as HostProfileSchema
+    HostProfile as HostProfileSchema,
 )
 from app.core.auth import require_auth, User
 
@@ -26,21 +26,18 @@ def require_write_permission(user: User = Depends(require_auth)) -> User:
     """Require user with write permissions."""
     if "write" not in (user.scopes or []):
         raise HTTPException(
-            status_code=403,
-            detail="User does not have write permissions"
+            status_code=403, detail="User does not have write permissions"
         )
     return user
 
 
 @router.get("/assets", response_model=list[AssetSchema])
-async def list_assets(
-    db: AsyncSession = Depends(get_async_session)
-):
+async def list_assets(db: AsyncSession = Depends(get_async_session)):
     """
     List all discovered assets.
-    
+
     Returns a list of all assets in the system with their basic information.
-    
+
     Returns:
         List[AssetSchema]: Array of asset objects
     """
@@ -49,180 +46,170 @@ async def list_assets(
 
 
 @router.get("/assets/{asset_id}", response_model=AssetSchema)
-async def get_asset(
-    asset_id: int,
-    db: AsyncSession = Depends(get_async_session)
-):
+async def get_asset(asset_id: int,
+                    db: AsyncSession = Depends(get_async_session)):
     """
     Get an asset by ID.
-    
+
     Retrieves detailed information about a specific asset using its database ID.
-    
+
     Args:
         asset_id: The unique identifier of the asset
-        
+
     Returns:
         AssetSchema: Asset information including IP, hostname, device type
-        
+
     Raises:
         HTTPException(404): If asset not found
     """
-    result = await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     return asset
 
 
 @router.get("/assets/{ip_address}", response_model=AssetSchema)
 async def get_asset_by_ip(
-    ip_address: str,
-    db: AsyncSession = Depends(get_async_session)
+    ip_address: str, db: AsyncSession = Depends(get_async_session)
 ):
     """
     Get an asset by IP address.
-    
+
     Retrieves asset information using its IP address.
-    
+
     Args:
         ip_address: The IP address of the asset (e.g., "192.168.1.1")
-        
+
     Returns:
         AssetSchema: Asset information
-        
+
     Raises:
         HTTPException(404): If asset not found
     """
-    result = await db.execute(
-        select(Asset).where(Asset.ip_address == ip_address)
-    )
+    result = await db.execute(select(Asset).where(Asset.ip_address == ip_address))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     return asset
 
 
 @router.get("/assets/{asset_id}/ports", response_model=list[PortSchema])
 async def get_asset_ports(
-    asset_id: int,
-    db: AsyncSession = Depends(get_async_session)
-):
+        asset_id: int, db: AsyncSession = Depends(get_async_session)):
     """
     Get ports for an asset.
-    
+
     Retrieves all scanned ports associated with a specific asset.
-    
+
     Args:
         asset_id: The unique identifier of the asset
-        
+
     Returns:
         List[PortSchema]: Array of port objects with state and service info
     """
-    result = await db.execute(
-        select(Port).where(Port.asset_id == asset_id)
-    )
+    result = await db.execute(select(Port).where(Port.asset_id == asset_id))
     return list(result.scalars().all())
 
 
 @router.get("/assets/{asset_id}/vulnerabilities")
 async def get_asset_vulnerabilities(
-    asset_id: int,
-    db: AsyncSession = Depends(get_async_session)
+    asset_id: int, db: AsyncSession = Depends(get_async_session)
 ):
     """
     Get vulnerabilities for an asset.
-    
+
     Retrieves vulnerability information and counts for a specific asset.
-    
+
     Args:
         asset_id: The unique identifier of the asset
-        
+
     Returns:
         dict: Vulnerability information including counts
-        
+
     Raises:
         HTTPException(404): If asset not found
     """
-    result = await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     # Return vulnerability count
     return {
         "ip_address": asset.ip_address,
         "vulnerability_count": asset.vulnerability_count,
-        "kev_count": asset.kev_count
+        "kev_count": asset.kev_count,
     }
 
 
 @router.get("/assets/{asset_id}/stats")
 async def get_asset_stats(
-    asset_id: int,
-    db: AsyncSession = Depends(get_async_session)
-):
+        asset_id: int, db: AsyncSession = Depends(get_async_session)):
     """
     Get port statistics for an asset.
-    
+
     Calculates and returns port scan statistics including counts
     of open, closed, and filtered ports.
-    
+
     Args:
         asset_id: The unique identifier of the asset
-        
+
     Returns:
         dict: Port statistics including counts and services
-        
+
     Raises:
         HTTPException(404): If asset not found
     """
     from sqlalchemy import func
-    
+
     # Get asset to verify it exists
-    result = await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     # Get port statistics
     result = await db.execute(
         select(
-            func.count(Port.id).label('total'),
-            func.sum(case([(Port.state == 'open', 1)], else_=0)).label('open_count'),
-            func.sum(case([(Port.state == 'closed', 1)], else_=0)).label('closed_count'),
-            func.sum(case([(Port.state == 'filtered', 1)], else_=0)).label('filtered_count'),
-            func.count(Port.service_name).distinct().label('unique_services')
+            func.count(Port.id).label("total"),
+            func.sum(case([(Port.state == "open", 1)], else_=0)
+                     ).label("open_count"),
+            func.sum(case([(Port.state == "closed", 1)], else_=0)).label(
+                "closed_count"
+            ),
+            func.sum(case([(Port.state == "filtered", 1)], else_=0)).label(
+                "filtered_count"
+            ),
+            func.count(Port.service_name).distinct().label("unique_services"),
         ).where(Port.asset_id == asset_id)
     )
-    
+
     stats = result.fetchone()
-    
+
     # Get services list
     result = await db.execute(
-        select(Port.service_name).where(Port.asset_id == asset_id).distinct().order_by(Port.service_name)
+        select(Port.service_name)
+        .where(Port.asset_id == asset_id)
+        .distinct()
+        .order_by(Port.service_name)
     )
     services = [s[0] for s in result.fetchall() if s[0]]
-    
+
     # Get protocol breakdown
     result = await db.execute(
-        select(Port.protocol, func.count(Port.id).label('count'))
+        select(Port.protocol, func.count(Port.id).label("count"))
         .where(Port.asset_id == asset_id)
         .group_by(Port.protocol)
     )
     protocols = {row[0]: row[1] for row in result.fetchall()}
-    
+
     return {
         "asset_id": asset.id,
         "ip_address": asset.ip_address,
@@ -230,7 +217,9 @@ async def get_asset_stats(
         "open_ports": stats.open_count if stats and stats.open_count else 0,
         "closed_ports": stats.closed_count if stats and stats.closed_count else 0,
         "filtered_ports": stats.filtered_count if stats and stats.filtered_count else 0,
-        "unique_services": stats.unique_services if stats and stats.unique_services else 0,
+        "unique_services": (
+            stats.unique_services if stats and stats.unique_services else 0
+        ),
         "services": services[:20],  # Top 20 services
         "protocol_breakdown": protocols,
     }
@@ -240,31 +229,30 @@ async def get_asset_stats(
 async def create_asset(
     asset: AssetCreate,
     user: User = Depends(require_auth),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """
     Create a new asset.
-    
+
     Registers a new asset in the system with provided information.
     Requires write permissions.
-    
+
     Args:
         asset: AssetCreate schema containing asset details
         user: Authenticated user with write permissions
-        
+
     Returns:
         AssetSchema: Created asset object
-        
+
     Raises:
         HTTPException(403): If user lacks write permissions
     """
     # Check write permissions
     if "write" not in (user.scopes or []):
         raise HTTPException(
-            status_code=403,
-            detail="User does not have write permissions"
+            status_code=403, detail="User does not have write permissions"
         )
-    
+
     db_asset = Asset(**asset.model_dump())
     db.add(db_asset)
     await db.commit()
@@ -277,22 +265,22 @@ async def update_asset(
     asset_id: int,
     asset: AssetCreate,
     user: User = Depends(require_auth),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """
     Update an asset.
-    
+
     Updates existing asset information with provided fields.
     Requires write permissions.
-    
+
     Args:
         asset_id: The unique identifier of the asset to update
         asset: AssetCreate schema with updated fields
         user: Authenticated user with write permissions
-        
+
     Returns:
         AssetSchema: Updated asset object
-        
+
     Raises:
         HTTPException(403): If user lacks write permissions
         HTTPException(404): If asset not found
@@ -300,21 +288,18 @@ async def update_asset(
     # Check write permissions
     if "write" not in (user.scopes or []):
         raise HTTPException(
-            status_code=403,
-            detail="User does not have write permissions"
+            status_code=403, detail="User does not have write permissions"
         )
-    
-    result = await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )
+
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
     db_asset = result.scalar_one_or_none()
-    
+
     if not db_asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     for field, value in asset.model_dump(exclude_unset=True).items():
         setattr(db_asset, field, value)
-    
+
     await db.commit()
     await db.refresh(db_asset)
     return db_asset
@@ -324,20 +309,20 @@ async def update_asset(
 async def delete_asset(
     asset_id: int,
     user: User = Depends(require_auth),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """
     Delete an asset.
-    
+
     Removes an asset from the system. Requires write permissions.
-    
+
     Args:
         asset_id: The unique identifier of the asset to delete
         user: Authenticated user with write permissions
-        
+
     Returns:
         dict: Deletion confirmation message
-        
+
     Raises:
         HTTPException(403): If user lacks write permissions
         HTTPException(404): If asset not found
@@ -345,41 +330,37 @@ async def delete_asset(
     # Check write permissions
     if "write" not in (user.scopes or []):
         raise HTTPException(
-            status_code=403,
-            detail="User does not have write permissions"
+            status_code=403, detail="User does not have write permissions"
         )
-    
-    result = await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )
+
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     await db.delete(asset)
     await db.commit()
-    
+
     return {"message": "Asset deleted"}
 
 
 @router.get("/assets/{asset_id}/profile", response_model=HostProfileSchema)
 async def get_asset_profile(
-    asset_id: int,
-    db: AsyncSession = Depends(get_async_session)
+    asset_id: int, db: AsyncSession = Depends(get_async_session)
 ):
     """
     Get host profile for an asset.
-    
+
     Retrieves detailed host profiling information including OS fingerprinting,
     uptime, and service counts for a specific asset.
-    
+
     Args:
         asset_id: The unique identifier of the asset
-        
+
     Returns:
         HostProfileSchema: Detailed host profile information
-        
+
     Raises:
         HTTPException(404): If host profile not found
     """
@@ -387,46 +368,42 @@ async def get_asset_profile(
         select(HostProfile).where(HostProfile.asset_id == asset_id)
     )
     profile = result.scalar_one_or_none()
-    
+
     if not profile:
         raise HTTPException(status_code=404, detail="Host profile not found")
-    
+
     return profile
 
 
 @router.get("/assets/{asset_id}/history", response_model=list[dict])
 async def get_asset_history_endpoint(
-    asset_id: int,
-    limit: int = 100,
-    db: AsyncSession = Depends(get_async_session)
+    asset_id: int, limit: int = 100, db: AsyncSession = Depends(get_async_session)
 ):
     """
     Get history entries for an asset.
-    
+
     Retrieves all historical changes tracked for a specific asset,
     including OS updates, port changes, and vulnerability findings.
-    
+
     Args:
         asset_id: The unique identifier of the asset
         limit: Maximum number of history entries to return
-        
+
     Returns:
         List[dict]: Array of history entry objects
     """
     # Get asset to verify it exists
-    result = await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     # Get history entries
     from app.models.asset_history import AssetHistory, get_asset_history
-    
+
     history = get_asset_history(asset_id, limit)
-    
+
     # Convert to response format
     return [
         {
@@ -440,7 +417,7 @@ async def get_asset_history_endpoint(
             "performed_by": h.performed_by,
             "description": h.description,
             "severity": h.severity,
-            "created_at": h.created_at.isoformat() if h.created_at else None
+            "created_at": h.created_at.isoformat() if h.created_at else None,
         }
         for h in history
     ]
@@ -448,37 +425,33 @@ async def get_asset_history_endpoint(
 
 @router.get("/assets/{ip_address}/history", response_model=list[dict])
 async def get_asset_history_by_ip(
-    ip_address: str,
-    limit: int = 100,
-    db: AsyncSession = Depends(get_async_session)
+    ip_address: str, limit: int = 100, db: AsyncSession = Depends(get_async_session)
 ):
     """
     Get history entries for an asset by IP address.
-    
+
     Retrieves all historical changes tracked for a specific asset
     using its IP address.
-    
+
     Args:
         ip_address: The IP address of the asset
         limit: Maximum number of history entries to return
-        
+
     Returns:
         List[dict]: Array of history entry objects
     """
     # Get asset by IP
-    result = await db.execute(
-        select(Asset).where(Asset.ip_address == ip_address)
-    )
+    result = await db.execute(select(Asset).where(Asset.ip_address == ip_address))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     # Get history entries
     from app.models.asset_history import AssetHistory, get_asset_history
-    
+
     history = get_asset_history(asset.id, limit)
-    
+
     # Convert to response format
     return [
         {
@@ -492,7 +465,7 @@ async def get_asset_history_by_ip(
             "performed_by": h.performed_by,
             "description": h.description,
             "severity": h.severity,
-            "created_at": h.created_at.isoformat() if h.created_at else None
+            "created_at": h.created_at.isoformat() if h.created_at else None,
         }
         for h in history
     ]
@@ -509,13 +482,13 @@ async def create_asset_history_entry(
     description: str = None,
     severity: str = None,
     user: User = Depends(require_write_permission),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """
     Create a new history entry for an asset.
-    
+
     Manually records a change to an asset's state. Requires write permissions.
-    
+
     Args:
         asset_id: The unique identifier of the asset
         change_type: Type of change (e.g., os_update, port_change)
@@ -525,26 +498,24 @@ async def create_asset_history_entry(
         scan_id: Optional scan ID that triggered the change
         description: Human-readable description of the change
         severity: Severity level for vulnerability changes
-        
+
     Returns:
         dict: Created history entry confirmation
-        
+
     Raises:
         HTTPException(403): If user lacks write permissions
         HTTPException(404): If asset not found
     """
     # Verify asset exists
-    result = await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )
+    result = await db.execute(select(Asset).where(Asset.id == asset_id))
     asset = result.scalar_one_or_none()
-    
+
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     # Create history entry
     from app.models.asset_history import add_asset_history
-    
+
     history_entry = await add_asset_history(
         asset_id=asset_id,
         change_type=change_type,
@@ -554,11 +525,11 @@ async def create_asset_history_entry(
         scan_id=scan_id,
         performed_by=user.username if user else "system",
         description=description or f"Manual change: {change_type}",
-        severity=severity
+        severity=severity,
     )
-    
+
     return {
         "message": "History entry created",
         "history_id": history_entry.id,
-        "change_type": change_type
+        "change_type": change_type,
     }

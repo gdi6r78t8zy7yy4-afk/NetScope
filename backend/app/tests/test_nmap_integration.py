@@ -36,7 +36,11 @@ class TestNmapXmlOutput:
   <runstats><finished time="1734500001" elapsed="1.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.scan_single_port("127.0.0.1", 80)
 
@@ -56,7 +60,11 @@ class TestNmapXmlOutput:
   <runstats><finished time="1734500001" elapsed="1.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.scan_ports("192.168.1.1", [22, 80])
 
@@ -76,7 +84,11 @@ class TestNmapXmlOutput:
   <runstats><finished time="1734500001" elapsed="1.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.scan_port_range("192.168.1.1", 20, 30)
 
@@ -96,7 +108,11 @@ class TestNmapXmlOutput:
   <runstats><finished time="1734500001" elapsed="60.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.full_scan("192.168.1.1")
 
@@ -159,7 +175,7 @@ class TestNmapErrorHandling:
             mock_run.return_value = {
                 "stdout": "",
                 "stderr": "nmap: command not found",
-                "returncode": 127
+                "returncode": 127,
             }
 
             result = await scanner.scan_single_port("127.0.0.1", 80)
@@ -176,7 +192,7 @@ class TestNmapErrorHandling:
             mock_run.return_value = {
                 "stdout": "",
                 "stderr": "Operation not permitted",
-                "returncode": 1
+                "returncode": 1,
             }
 
             result = await scanner.scan_single_port("127.0.0.1", 80)
@@ -200,7 +216,11 @@ class TestNmapScanMethods:
   <runstats><finished time="1734500001" elapsed="1.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.scan_single_port("192.168.1.1", 443)
 
@@ -221,7 +241,11 @@ class TestNmapScanMethods:
   <runstats><finished time="1734500001" elapsed="1.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.scan_ports("192.168.1.1", [22, 80, 443])
 
@@ -242,7 +266,11 @@ class TestNmapScanMethods:
   <runstats><finished time="1734500001" elapsed="1.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.scan_port_range("192.168.1.1", 1, 10)
 
@@ -262,7 +290,11 @@ class TestNmapScanMethods:
   <runstats><finished time="1734500001" elapsed="60.0"/></runstats>
 </nmaprun>"""
 
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.full_scan("192.168.1.1")
 
@@ -296,7 +328,11 @@ class TestNmapIntegration:
 </nmaprun>"""
 
         with patch("app.engines.port_scanner.nmap_engine.run_command") as mock_run:
-            mock_run.return_value = {"stdout": xml_output, "stderr": "", "returncode": 0}
+            mock_run.return_value = {
+                "stdout": xml_output,
+                "stderr": "",
+                "returncode": 0,
+            }
 
             result = await scanner.scan_single_port("192.168.1.1", 80)
 
@@ -314,7 +350,7 @@ class TestNmapIntegration:
             mock_run.return_value = {
                 "stdout": "",
                 "stderr": "Network scan timed out",
-                "returncode": 1
+                "returncode": 1,
             }
 
             result = await scanner.scan_single_port("192.168.1.1", 80)

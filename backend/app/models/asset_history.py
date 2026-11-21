@@ -14,6 +14,7 @@ from app.database.base import Base
 
 class ChangeType(str, Enum):
     """Types of asset changes that can be tracked."""
+
     OS_UPDATE = "os_update"
     PORT_CHANGE = "port_change"
     SERVICE_ADDED = "service_added"
@@ -31,35 +32,35 @@ class ChangeType(str, Enum):
 class AssetHistory(Base):
     """
     Model for tracking asset changes over time.
-    
+
     Provides an audit trail of all significant changes to assets,
     including OS updates, port changes, and vulnerability findings.
     """
-    
+
     __tablename__ = "asset_history"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     # Asset reference
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
-    
+
     # Change tracking
     change_type = Column(String(50), nullable=False, index=True)
     changed_fields = Column(JSON, nullable=True)  # Changed field names
-    old_values = Column(JSON, nullable=True)      # Previous values
-    new_values = Column(JSON, nullable=True)      # New values
-    
+    old_values = Column(JSON, nullable=True)  # Previous values
+    new_values = Column(JSON, nullable=True)  # New values
+
     # Context information
     scan_id = Column(Integer, ForeignKey("scans.id"), nullable=True)
     performed_by = Column(String(100), nullable=True)  # User or system
     description = Column(Text, nullable=True)
-    
+
     # Severity (for vulnerability-related changes)
     severity = Column(String(20), nullable=True)  # critical, high, medium, low
-    
+
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
-    
+
     # Relationships
     asset = relationship("Asset", backref="history_entries")
     scan = relationship("Scan", backref="asset_history")
@@ -68,28 +69,28 @@ class AssetHistory(Base):
 class AssetChange(Base):
     """
     Detailed asset change record for granular tracking.
-    
+
     Tracks individual field changes with timestamps and context.
     """
-    
+
     __tablename__ = "asset_changes"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
-    
+
     # Change details
     field_name = Column(String(100), nullable=False)
     old_value = Column(Text, nullable=True)
     new_value = Column(Text, nullable=True)
-    
+
     # Context
     change_type = Column(String(50), nullable=False, index=True)
     scan_id = Column(Integer, ForeignKey("scans.id"), nullable=True)
-    
+
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     resolved_at = Column(DateTime, nullable=True)  # For status changes
-    
+
     # Relationships
     asset = relationship("Asset", backref="changes")
     scan = relationship("Scan", backref="asset_changes")
@@ -104,11 +105,11 @@ def create_asset_history_entry(
     scan_id: int = None,
     performed_by: str = "system",
     description: str = None,
-    severity: str = None
+    severity: str = None,
 ) -> AssetHistory:
     """
     Create a new asset history entry.
-    
+
     Args:
         asset_id: ID of the affected asset
         change_type: Type of change (from ChangeType enum)
@@ -119,12 +120,12 @@ def create_asset_history_entry(
         performed_by: User or system identifier
         description: Human-readable description of the change
         severity: Severity level for vulnerability changes
-        
+
     Returns:
         AssetHistory: The created history entry
     """
     from app.database import SessionLocal
-    
+
     entry = AssetHistory(
         asset_id=asset_id,
         change_type=change_type,
@@ -134,9 +135,9 @@ def create_asset_history_entry(
         scan_id=scan_id,
         performed_by=performed_by,
         description=description,
-        severity=severity
+        severity=severity,
     )
-    
+
     return entry
 
 
@@ -149,11 +150,11 @@ async def add_asset_history(
     scan_id: int = None,
     performed_by: str = "system",
     description: str = None,
-    severity: str = None
+    severity: str = None,
 ) -> AssetHistory:
     """
     Add a new asset history entry to the database.
-    
+
     Args:
         asset_id: ID of the affected asset
         change_type: Type of change (from ChangeType enum)
@@ -164,12 +165,12 @@ async def add_asset_history(
         performed_by: User or system identifier
         description: Human-readable description of the change
         severity: Severity level for vulnerability changes
-        
+
     Returns:
         AssetHistory: The created history entry
     """
     from app.database import SessionLocal
-    
+
     entry = AssetHistory(
         asset_id=asset_id,
         change_type=change_type,
@@ -179,30 +180,30 @@ async def add_asset_history(
         scan_id=scan_id,
         performed_by=performed_by,
         description=description,
-        severity=severity
+        severity=severity,
     )
-    
+
     async with SessionLocal() as session:
         session.add(entry)
         await session.commit()
         await session.refresh(entry)
-    
+
     return entry
 
 
 def get_asset_history(asset_id: int, limit: int = 100) -> list:
     """
     Get history entries for an asset.
-    
+
     Args:
         asset_id: ID of the asset
         limit: Maximum number of entries to return
-        
+
     Returns:
         List of AssetHistory entries
     """
     from app.database import SessionLocal
-    
+
     with SessionLocal() as session:
         history = (
             session.query(AssetHistory)
@@ -211,23 +212,23 @@ def get_asset_history(asset_id: int, limit: int = 100) -> list:
             .limit(limit)
             .all()
         )
-    
+
     return history
 
 
 def get_asset_changes(asset_id: int, limit: int = 100) -> list:
     """
     Get detailed change records for an asset.
-    
+
     Args:
         asset_id: ID of the asset
         limit: Maximum number of entries to return
-        
+
     Returns:
         List of AssetChange entries
     """
     from app.database import SessionLocal
-    
+
     with SessionLocal() as session:
         changes = (
             session.query(AssetChange)
@@ -236,5 +237,5 @@ def get_asset_changes(asset_id: int, limit: int = 100) -> list:
             .limit(limit)
             .all()
         )
-    
+
     return changes

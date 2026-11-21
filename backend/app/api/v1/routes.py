@@ -4,6 +4,7 @@
 Main API routes file that registers all endpoints.
 """
 
+from app.api.v1.intelligence import router as intelligence_router
 from fastapi import APIRouter
 
 from app.api.v1 import router as v1_router
@@ -16,18 +17,15 @@ api_router = APIRouter()
 api_router.include_router(v1_router)
 
 # Include intelligence router
-from app.api.v1.intelligence import router as intelligence_router
+
 api_router.include_router(intelligence_router)
+
 
 # Root endpoint (serves at /)
 @api_router.get("/")
 async def root():
     """Root endpoint."""
-    return {
-        "name": "NetScope API",
-        "version": "1.0.0",
-        "status": "running"
-    }
+    return {"name": "NetScope API", "version": "1.0.0", "status": "running"}
 
 
 # Health check endpoint at /health (after v1_router to ensure it's registered)
@@ -47,6 +45,6 @@ async def api_info():
             "/api/v1/discovery",
             "/api/v1/scans",
             "/api/v1/assets",
-            "/api/v1/vulnerabilities"
-        ]
+            "/api/v1/vulnerabilities",
+        ],
     }

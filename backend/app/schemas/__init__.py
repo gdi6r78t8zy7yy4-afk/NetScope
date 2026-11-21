@@ -12,12 +12,12 @@ from app.schemas.vulnerability import (
     VulnerabilityListResponse,
     CVSSData,
     EPSSData,
-    KEVData
+    KEVData,
 )
 
 __all__ = [
     "Asset",
-    "AssetCreate", 
+    "AssetCreate",
     "AssetUpdate",
     "Network",
     "NetworkCreate",
