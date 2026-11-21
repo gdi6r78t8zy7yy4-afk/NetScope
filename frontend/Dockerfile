@@ -2,8 +2,8 @@
 
 FROM nginx:alpine AS production
 
-# Copy pre-built assets from local dist folder (relative to build context root)
-COPY frontend/dist /usr/share/nginx/html
+# Copy pre-built assets from dist folder
+COPY dist /usr/share/nginx/html
 
 # Create nginx configuration with API proxy to backend
 RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
