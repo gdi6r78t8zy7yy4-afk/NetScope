@@ -87,8 +87,8 @@ const nodeGlobals = {
 export default [
   js.configs.recommended,
   {
-    ignores: ["dist/", "node_modules/"],
-    files: ["**/*.{js,jsx,ts,tsx}"],
+    ignores: ["**/dist/**", "**/node_modules/", ".git/"],
+    files: ["src/**/*.{js,ts,jsx,tsx}", "eslint.config.js"],
     languageOptions: {
       parser: typescriptParser,
       ecmaVersion: "latest",
