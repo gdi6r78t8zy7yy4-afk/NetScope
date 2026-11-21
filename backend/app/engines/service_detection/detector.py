@@ -158,7 +158,7 @@ class ServiceDetector:
     def _parse_nmap_service_output(self, output: str) -> Optional[Dict]:
         """Parse Nmap service detection output."""
         for line in output.split("\n"):
-            if "/" in line and not "PORT" in line:
+            if "/" in line and "PORT" not in line:
                 parts = line.split()
 
                 if len(parts) >= 3:

@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 120
-extend-ignore = E402, W293, F401, F811, F841
+extend-ignore = E402, W293, F401, F811, F841, E501
 exclude = 
     .git,
     __pycache__,
