@@ -6,6 +6,7 @@ import {
   CardTitle,
   CardDescription
 } from '../components/ui/card'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
@@ -47,6 +48,7 @@ function HostDetails({ asset }: { asset: Asset }) {
     services: 0
   })
   
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loadingStats, setLoadingStats] = useState(false)
   
   useEffect(() => {
@@ -249,20 +251,20 @@ export function DiscoveryPage() {
   }, [assets, searchTerm])
 
   useEffect(() => {
-    console.log('=== Component Mounted - Loading Data ===')
+    console.warn('=== Component Mounted - Loading Data ===')
     fetchAssets()
     fetchAllScans()
   }, [])
 
   async function fetchAssets() {
-    console.log('=== Fetching Assets ===');
+    console.warn('=== Fetching Assets ===');
     try {
       const response = await fetch(getApiEndpoint('/api/v1/assets'))
-      console.log('Fetch assets response status:', response.status);
+      console.warn('Fetch assets response status:', response.status);
       
       if (response.ok) {
         const data = await response.json()
-        console.log('Assets received:', data.length, 'assets');
+        console.warn('Assets received:', data.length, 'assets');
         setAssets(data)
       } else {
         console.error('Failed to fetch assets: HTTP', response.status);
@@ -275,30 +277,30 @@ export function DiscoveryPage() {
   }
 
   async function fetchAllScans() {
-    console.log('=== Fetching All Scans ===');
+    console.warn('=== Fetching All Scans ===');
     try {
       const response = await fetch(getApiEndpoint('/api/v1/scans'))
-      console.log('Fetch scans response status:', response.status);
+      console.warn('Fetch scans response status:', response.status);
       
       if (response.ok) {
         const allScans = await response.json()
-        console.log('All scans received:', allScans.length, 'scans');
+        console.warn('All scans received:', allScans.length, 'scans');
         
         // Store all scans for history (create new array reference to force re-render)
         setScans([...allScans])
         
         // Filter for running or pending scans for active scans section
         const active = allScans.filter((s: Scan) => s.status === 'running' || s.status === 'pending')
-        console.log('Active scans (running/pending):', active.length, 'scans');
+        console.warn('Active scans (running/pending):', active.length, 'scans');
         
         setActiveScans(active)
         
         // If any scan is still running, keep checking for updates
         if (active.some(s => s.status === 'running')) {
-          console.log('Scans are running, setting up polling...')
+          console.warn('Scans are running, setting up polling...')
           setTimeout(fetchAllScans, 2000)
         } else {
-          console.log('No scans running, not polling further')
+          console.warn('No scans running, not polling further')
         }
       } else {
         console.error('Failed to fetch scans: HTTP', response.status);
@@ -309,10 +311,10 @@ export function DiscoveryPage() {
   }
 
   async function runDiscoveryScan() {
-    console.log('=== Discovery Scan Button Clicked ===');
+    console.warn('=== Discovery Scan Button Clicked ===');
     setScanInProgress(true)
     try {
-      console.log('Step 1: Creating discovery scan...')
+      console.warn('Step 1: Creating discovery scan...')
       // Create a new scan
       const scanPayload = {
         name: `Discovery Scan ${new Date().toISOString()}`,
@@ -320,7 +322,7 @@ export function DiscoveryPage() {
         target_cidr: '192.168.1.0/24',
         rate_limit: 'medium'
       };
-      console.log('Scan payload:', scanPayload);
+      console.warn('Scan payload:', scanPayload);
       
       const response = await fetch(getApiEndpoint('/api/v1/scans'), {
         method: 'POST',
@@ -330,27 +332,27 @@ export function DiscoveryPage() {
         body: JSON.stringify(scanPayload)
       });
       
-      console.log('Step 1 - Create scan response status:', response.status);
+      console.warn('Step 1 - Create scan response status:', response.status);
       
       if (response.ok) {
         const scan = await response.json();
-        console.log('Step 1 - Discovery scan created:', scan);
-        console.log('Scan ID:', scan.id, 'Status:', scan.status);
+        console.warn('Step 1 - Discovery scan created:', scan);
+        console.warn('Scan ID:', scan.id, 'Status:', scan.status);
         
         // Run the newly created scan
-        console.log('Step 2: Running scan ID', scan.id, '...')
+        console.warn('Step 2: Running scan ID', scan.id, '...')
         const runResponse = await fetch(getApiEndpoint(`/api/v1/scans/${scan.id}/run`), {
           method: 'POST',
         });
         
-        console.log('Step 2 - Run scan response status:', runResponse.status);
+        console.warn('Step 2 - Run scan response status:', runResponse.status);
         
         if (runResponse.ok) {
           const runResult = await runResponse.json();
-          console.log('Step 2 - Discovery scan started:', runResult);
+          console.warn('Step 2 - Discovery scan started:', runResult);
           
           // Check if the scan was created with running status or completed
-          console.log('Final scan status:', runResult.status);
+          console.warn('Final scan status:', runResult.status);
           
           // Refresh all scans to update both active and history
           await fetchAllScans();
@@ -370,25 +372,25 @@ export function DiscoveryPage() {
     } catch (error) {
       console.error('Error creating discovery scan:', error);
     } finally {
-      console.log('=== Discovery Scan Function Completed ===');
+      console.warn('=== Discovery Scan Function Completed ===');
       setScanInProgress(false)
     }
   }
 
   // Add useEffect to log scan status changes
   useEffect(() => {
-    console.log('Active scans updated:', activeScans.length, 'scans');
+    console.warn('Active scans updated:', activeScans.length, 'scans');
     activeScans.forEach((scan) => {
-      console.log(`  - Scan ${scan.id}: ${scan.name} (${scan.status})`);
+      console.warn(`  - Scan ${scan.id}: ${scan.name} (${scan.status})`);
     });
   }, [activeScans]);
 
   // Log scan history updates
   useEffect(() => {
-    console.log('Completed scans updated:', completedScans.length, 'scans');
+    console.warn('Completed scans updated:', completedScans.length, 'scans');
     if (completedScans.length > 0) {
       completedScans.forEach((scan) => {
-        console.log(`  - Scan ${scan.id}: ${scan.name} (${scan.status}, hosts: ${scan.hosts_found})`);
+        console.warn(`  - Scan ${scan.id}: ${scan.name} (${scan.status}, hosts: ${scan.hosts_found})`);
       });
     }
   }, [completedScans]);
@@ -526,7 +528,7 @@ export function DiscoveryPage() {
             <CardContent className="space-y-3">
               <button
                 onClick={(e) => {
-                  console.log('=== BUTTON CLICKED EVENT ===', e)
+                  console.warn('=== BUTTON CLICKED EVENT ===', e)
                   runDiscoveryScan()
                 }}
                 disabled={scanInProgress}

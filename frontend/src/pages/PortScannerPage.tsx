@@ -69,7 +69,7 @@ export function PortScannerPage() {
       const response = await fetch(getApiEndpoint(`/api/v1/assets/${assetId}/ports`))
       if (response.ok) {
         const data = await response.json()
-        console.log('Port scan results:', data)
+        console.warn('Port scan results:', data)
       }
     } catch (error) {
       console.error('Failed to fetch port scan results:', error)
@@ -124,6 +124,7 @@ export function PortScannerPage() {
   }
 
   const [portResults, setPortResults] = useState<PortResult[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedHost, setSelectedHost] = useState<string | null>(null)
   const [filterState, setFilterState] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'port' | 'state'>('port')

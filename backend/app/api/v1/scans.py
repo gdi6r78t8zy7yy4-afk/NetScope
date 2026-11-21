@@ -241,27 +241,47 @@ async def run_scan(
         raise HTTPException(status_code=404, detail="Scan not found")
 
     # Check capacity before running
-    from sqlalchemy import select as sa_select
+    from sqlalchemy import select as sa_select, update as sa_update
     from app.core.config import settings
+    from datetime import timedelta
 
     result = await db.execute(sa_select(Scan).where(Scan.status == "running"))
     running_scans = list(result.scalars().all())
 
-    # If at capacity, mark as pending (will be picked up by scheduler)
-    if len(running_scans) >= settings.max_concurrent_scans:
-        # Already pending scans stay pending
-        if scan.status != "pending":
+    # Handle pending scans
+    if scan.status == "pending":
+        if len(running_scans) < settings.max_concurrent_scans:
+            # Capacity is now available, start the pending scan
             logger.info(
-                "Scan queued (no capacity)",
+                "Capacity available for pending scan",
                 scan_id=scan.id,
                 running_count=len(running_scans),
-                max_concurrent=settings.max_concurrent_scans,
             )
+            # Mark as running and start execution
+            scan.status = "running"
+            scan.started_at = datetime.now()
+            await db.commit()
+        else:
+            # Still at capacity, return current state
+            return {
+                "scan_id": scan.id,
+                "status": "pending",
+                "message": f"Scan is queued. Max concurrent scans ({settings.max_concurrent_scans}) reached.",
+                "queue_position": 0,
+            }
+    elif len(running_scans) >= settings.max_concurrent_scans:
+        # Not pending but at capacity - mark as pending
+        logger.info(
+            "Scan queued (no capacity)",
+            scan_id=scan.id,
+            running_count=len(running_scans),
+            max_concurrent=settings.max_concurrent_scans,
+        )
         return {
             "scan_id": scan.id,
             "status": "pending",
             "message": f"Scan queued. Max concurrent scans ({settings.max_concurrent_scans}) reached.",
-            "queue_position": 0,  # Will be updated by scheduler
+            "queue_position": 0,
         }
 
     # Update status and record start time

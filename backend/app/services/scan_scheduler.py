@@ -5,8 +5,7 @@ Background worker for processing scan queue with concurrent scan limits.
 """
 
 import asyncio
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,6 +67,8 @@ class ScanQueueProcessor:
         while self._running:
             try:
                 await self._try_start_pending_scan()
+                # Check for pending scan timeouts
+                await self._check_pending_timeouts()
                 # Wait before next check to avoid tight loop
                 await asyncio.sleep(1)
             except Exception as e:
@@ -263,6 +264,53 @@ class ScanQueueProcessor:
             logger.error(
                 "Scan failed with error",
                 scan_id=scan.id,
+                error=str(e))
+
+    async def _check_pending_timeouts(self) -> None:
+        """Check for pending scans that have been waiting too long and fail them."""
+        try:
+            # Get pending scans
+            async for session in get_async_session():
+                try:
+                    result = await session.execute(
+                        select(Scan).where(Scan.status == "pending")
+                    )
+                    pending_scans = list(result.scalars().all())
+                    
+                    for scan in pending_scans:
+                        # Calculate time since creation
+                        if scan.created_at:
+                            age = datetime.now() - scan.created_at
+                            # Timeout after 5 minutes (300 seconds) in pending state
+                            timeout = timedelta(seconds=settings.scan_timeout_seconds if hasattr(settings, 'scan_timeout_seconds') else 300)
+                            
+                            if age > timeout:
+                                # Fail the scan
+                                stmt = (
+                                    update(Scan)
+                                    .where(Scan.id == scan.id)
+                                    .values(
+                                        status="failed",
+                                        completed_at=datetime.now(),
+                                        notes=f"Scan failed due to pending timeout (waited {age.total_seconds():.0f}s)"
+                                    )
+                                )
+                                await session.execute(stmt)
+                                await session.commit()
+                                logger.warning(
+                                    "Pending scan timed out",
+                                    scan_id=scan.id,
+                                    wait_time_seconds=int(age.total_seconds()),
+                                )
+                
+                except Exception as e:
+                    logger.error(
+                        "Error checking pending timeouts",
+                        error=str(e))
+                    
+        except Exception as e:
+            logger.error(
+                "Error in pending timeout check",
                 error=str(e))
 
     def get_queue_stats(self) -> dict:

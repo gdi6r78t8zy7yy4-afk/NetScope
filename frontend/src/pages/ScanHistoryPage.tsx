@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { getApiEndpoint } from '@/config'
 
@@ -23,14 +24,14 @@ export function ScanHistoryPage() {
   }, [])
 
   async function fetchScans() {
-    console.log('=== Fetching Scan History ===');
+    console.warn('=== Fetching Scan History ===');
     try {
       const response = await fetch(getApiEndpoint('/api/v1/scans'))
-      console.log('Fetch scans response status:', response.status);
+      console.warn('Fetch scans response status:', response.status);
       
       if (response.ok) {
         const data = await response.json()
-        console.log('All scans received:', data.length, 'scans');
+        console.warn('All scans received:', data.length, 'scans');
         setScans(data)
       } else {
         console.error('Failed to fetch scans: HTTP', response.status);

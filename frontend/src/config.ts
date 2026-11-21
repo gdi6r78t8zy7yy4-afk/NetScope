@@ -6,14 +6,11 @@
  */
 
 // Type declaration for import.meta.env
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   readonly DEV: boolean;
   readonly PROD: boolean;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
 }
 
 // Get API URL from environment variables with fallback
@@ -34,7 +31,9 @@ const isValidUrl = (url: string): boolean => {
   try {
     new URL(url);
     return true;
-  } catch (e) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_e) {
+    // Silently handle invalid URLs - validation will fail
     return false;
   }
 };

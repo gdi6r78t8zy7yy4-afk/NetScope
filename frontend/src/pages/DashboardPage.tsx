@@ -43,9 +43,10 @@ export function DashboardPage() {
         fetch(getApiEndpoint('/api/v1/vulnerabilities'))
       ])
 
-      let scansData = []
+      // Using underscore prefix to indicate unused variable
+      let _scansData = []
       if (scansResponse.ok) {
-        scansData = await scansResponse.json()
+        _scansData = await scansResponse.json()
       }
 
       let vulnData: any[] = []

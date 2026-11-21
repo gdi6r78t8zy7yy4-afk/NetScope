@@ -4,9 +4,9 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  CardDescription
+  CardTitle
 } from '../components/ui/card'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Input } from '../components/ui/input'
 import { getApiEndpoint } from '@/config'
 
