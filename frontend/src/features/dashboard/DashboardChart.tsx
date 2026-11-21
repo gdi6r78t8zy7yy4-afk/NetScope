@@ -1,12 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as echarts from 'echarts'
 
-interface SeriesItem {
-  data: unknown[]
-  type: string
-  itemStyle?: { color: string }
-}
-
 interface DashboardChartProps {
   title: string
   type: 'bar' | 'pie' | 'line'
@@ -22,13 +16,15 @@ export function DashboardChart({ title, type, data }: DashboardChartProps) {
 
     chart = echarts.init(chartRef.current)
 
+    const seriesData: (typeof data)[0][] = [...(data as unknown[])]
+
     const options: echarts.EChartsOption = {
       title: { text: title, textStyle: { color: '#e2e8f0' } },
       tooltip: {},
       grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       xAxis: { type: 'category', axisLabel: { color: '#94a3b8' } },
       yAxis: { type: 'value', axisLabel: { color: '#94a3b8' } },
-      series: [{ data, type, itemStyle: { color: '#10b981' } as SeriesItem }]
+      series: [{ data: seriesData, type, itemStyle: { color: '#10b981' } }]
     }
 
     chart.setOption(options)
