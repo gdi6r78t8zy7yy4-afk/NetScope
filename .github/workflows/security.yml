@@ -65,7 +65,7 @@ jobs:
         run: |
           cd backend
           pip install flake8
-          python3 -m flake8 app/ --config=.flake8 || echo "Flake8 complete with warnings"
+          python3 -m flake8 app/ --config=.flake8 || true
 
       - name: Run Dockerfile best practices check
         run: |
