@@ -68,8 +68,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          cd frontend
-          docker build -t netscope-frontend:${{ github.sha }} .
+          docker build -t netscope-frontend:${{ github.sha }} frontend/
 
       - name: Validate Docker image
         run: |
