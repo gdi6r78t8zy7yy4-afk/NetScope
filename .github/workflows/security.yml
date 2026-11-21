@@ -63,9 +63,8 @@ jobs:
 
       - name: Run flake8 (Python code style)
         run: |
-          cd backend
           pip install flake8
-          python3 -m flake8 app/ --config=.flake8 || true
+          python3 -m flake8 backend/app/ --config=backend/.flake8 || true
 
       - name: Run Dockerfile best practices check
         run: |
