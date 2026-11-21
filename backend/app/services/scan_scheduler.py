@@ -69,6 +69,8 @@ class ScanQueueProcessor:
                 await self._try_start_pending_scan()
                 # Check for pending scan timeouts
                 await self._check_pending_timeouts()
+                # Check for running scan timeouts (hung scans)
+                await self._check_running_timeouts()
                 # Wait before next check to avoid tight loop
                 await asyncio.sleep(1)
             except Exception as e:
@@ -239,6 +241,7 @@ class ScanQueueProcessor:
                     scan.target_cidr, getattr(scan, "ports", None) or []
                 )
                 scan.hosts_found = result_data.get("hosts_found", 0)
+                await session.commit()
 
             # Update scan status to completed
             scan.status = "completed"
@@ -265,6 +268,55 @@ class ScanQueueProcessor:
                 "Scan failed with error",
                 scan_id=scan.id,
                 error=str(e))
+
+    async def _check_running_timeouts(self) -> None:
+        """Check for running scans that have exceeded their timeout."""
+        try:
+            # Get all running scans
+            async for session in get_async_session():
+                try:
+                    result = await session.execute(
+                        select(Scan).where(Scan.status == "running")
+                    )
+                    running_scans = list(result.scalars().all())
+                    
+                    # Use the global timeout setting (default 3600 seconds)
+                    timeout_seconds = getattr(settings, 'scan_timeout_seconds', 3600)
+                    
+                    for scan in running_scans:
+                        # Calculate elapsed time since started_at
+                        if scan.started_at:
+                            elapsed = datetime.now() - scan.started_at
+                            timeout_delta = timedelta(seconds=timeout_seconds)
+                            
+                            if elapsed > timeout_delta:
+                                # Mark scan as failed due to timeout
+                                stmt = (
+                                    update(Scan)
+                                    .where(Scan.id == scan.id)
+                                    .values(
+                                        status="failed",
+                                        completed_at=datetime.now(),
+                                        notes=f"Scan failed due to timeout (ran for {elapsed.total_seconds():.0f}s, exceeded {timeout_seconds}s)"
+                                    )
+                                )
+                                await session.execute(stmt)
+                                await session.commit()
+                                
+                                logger.warning(
+                                    "Running scan timed out",
+                                    scan_id=scan.id,
+                                    elapsed_seconds=int(elapsed.total_seconds()),
+                                    timeout_seconds=timeout_seconds,
+                                )
+                        
+                except Exception as e:
+                    logger.error(
+                        "Error checking running scan timeouts",
+                        error=str(e))
+                    
+        except Exception as e:
+            logger.error("Error in running timeout check", error=str(e))
 
     async def _check_pending_timeouts(self) -> None:
         """Check for pending scans that have been waiting too long and fail them."""

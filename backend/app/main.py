@@ -6,7 +6,11 @@ FastAPI application entry point.
 
 import asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from typing import Callable, Awaitable
+
+import structlog
+from sqlalchemy import select, update, and_
 
 from fastapi import FastAPI, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +18,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.routes import api_router
 from app.core.config import settings
+from app.models.scan import Scan
 from app.database import get_async_session
 from app.middleware.request_id import get_log_context
 
@@ -221,6 +226,98 @@ async def lifespan(app: FastAPI):
             )
     except Exception as e:
         print(f"Failed to start intelligence sync worker: {e}")
+
+    # Find scans that have been "running" for more than 5 minutes (startup recovery)
+    timeout_delta = timedelta(minutes=5)
+    cutoff_time = datetime.now() - timeout_delta
+
+    try:
+        async with get_async_session() as db:
+            result = await db.execute(
+                select(Scan).where(
+                    Scan.status == "running",
+                    Scan.started_at < cutoff_time
+                )
+            )
+            hung_scans = result.scalars().all()
+            
+            if hung_scans:
+                print(f"Found {len(hung_scans)} hung scans from previous session")
+                
+                for scan in hung_scans:
+                    # Mark as failed with appropriate message
+                    stmt = (
+                        update(Scan)
+                        .where(Scan.id == scan.id)
+                        .values(
+                            status="failed",
+                            completed_at=datetime.now(),
+                            notes=f"Recovered from hung state (started at {scan.started_at.isoformat()})"
+                        )
+                    )
+                    await db.execute(stmt)
+                    await db.commit()
+                    
+                    print(f"  - Recovered scan {scan.id}: marked as failed")
+                
+                print(f"Recovered {len(hung_scans)} hung scans on startup")
+
+    except Exception as e:
+        print(f"Failed to recover hung scans: {e}")
+
+    # NEW: Start periodic hung scan recovery task
+    async def hung_scan_recovery_task():
+        """Periodically check for and mark hung scans as failed."""
+        from datetime import timedelta
+        from sqlalchemy import or_
+        
+        timeout_seconds = getattr(settings, 'scan_timeout_seconds', 3600)
+        recovery_interval = getattr(settings, 'scan_health_check_interval_seconds', 60)
+        
+        while True:
+            try:
+                await asyncio.sleep(recovery_interval)  # Check every minute
+                
+                async with get_async_session() as db:
+                    result = await db.execute(
+                        select(Scan).where(
+                            Scan.status == "running",
+                            or_(
+                                Scan.started_at < (datetime.now() - timedelta(seconds=timeout_seconds)),
+                                and_(
+                                    Scan.started_at == None,
+                                    Scan.created_at < (datetime.now() - timedelta(minutes=10))
+                                )
+                            )
+                        )
+                    )
+                    hung_scans = result.scalars().all()
+                    
+                    for scan in hung_scans:
+                        stmt = (
+                            update(Scan)
+                            .where(Scan.id == scan.id)
+                            .values(
+                                status="failed",
+                                completed_at=datetime.now(),
+                                notes=f"Marked as failed by hung scan recovery"
+                            )
+                        )
+                        await db.execute(stmt)
+                        await db.commit()
+                        
+                        logger = structlog.get_logger(__name__)
+                        logger.warning(
+                            "Hung scan recovered by cleanup task",
+                            scan_id=scan.id
+                        )
+                        
+            except Exception as e:
+                logger = structlog.get_logger(__name__)
+                logger.error("Hung scan recovery failed", error=str(e))
+
+    # Start the background task
+    asyncio.create_task(hung_scan_recovery_task())
 
     yield
 
