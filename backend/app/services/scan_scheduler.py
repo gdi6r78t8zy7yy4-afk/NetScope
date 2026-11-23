@@ -288,6 +288,133 @@ class ScanQueueProcessor:
         finally:
             await session.close()
 
+    async def _execute_scan(self, scan: Scan) -> None:
+        """Execute a single scan and update its status."""
+        from app.engines.port_scanner.nmap_engine import NmapPortScanner
+        from app.engines.discovery.active import ActiveDiscoveryEngine
+        from app.core.authorization_service import get_authorization_service
+
+        # Create a new session for scan execution
+        session = AsyncSessionLocal()
+        try:
+            scanner = NmapPortScanner()
+
+            # Fetch the scan in this session to ensure we have fresh data
+            result = await session.execute(select(Scan).where(Scan.id == scan.id))
+            active_scan = result.scalar_one_or_none()
+            if not active_scan:
+                logger.error("Scan not found during execution", scan_id=scan.id)
+                return
+
+            # Validate target
+            auth_service = get_authorization_service()
+            validation_result = auth_service.validate_target(active_scan.target_cidr)
+
+            if not validation_result.get("valid"):
+                logger.warning(
+                    "Scan target not authorized",
+                    scan_id=active_scan.id,
+                    target=active_scan.target_cidr,
+                )
+
+                stmt = (
+                    update(Scan)
+                    .where(Scan.id == active_scan.id)
+                    .values(status="failed", completed_at=datetime.now())
+                )
+                await session.execute(stmt)
+                await session.commit()
+                return
+
+            try:
+                if active_scan.scan_type == "discovery":
+                    discovery_engine = ActiveDiscoveryEngine(
+                        max_concurrent_hosts=5, scan_timeout=settings.scan_timeout_seconds
+                    )
+
+                    result_data = await discovery_engine.discover_with_nmap(
+                        active_scan.target_cidr, rate_limit=getattr(
+                            active_scan, "rate_limit", "medium")
+                    )
+
+                    # Parse and save discovery results
+                    discovered_hosts = result_data.get("hosts", [])
+                    active_scan.hosts_found = len(discovered_hosts)
+
+                    # Save assets
+                    if discovered_hosts:
+                        from app.models.asset import Asset
+
+                        for host in discovered_hosts:
+                            ip = (
+                                host.get("ip_address")
+                                or host.get("ip")
+                                or host.get("ipaddress")
+                            )
+                            if not ip:
+                                continue
+
+                            # Check if asset already exists
+                            existing_result = await session.execute(
+                                select(Asset).where(Asset.ip_address == ip)
+                            )
+                            existing_asset = existing_result.scalars().first()
+
+                            if not existing_asset:
+                                new_asset = Asset(
+                                    ip_address=ip,
+                                    mac_address=host.get(
+                                        "mac_address") or host.get("mac"),
+                                    hostname=host.get("hostname", ""),
+                                    device_type=host.get("device_type")
+                                    or host.get("device"),
+                                    operating_system=host.get("operating_system")
+                                    or host.get("os"),
+                                    confidence_level=host.get("confidence")
+                                    or host.get("confidence_level")
+                                    or "low",
+                                )
+                                session.add(new_asset)
+
+                    await session.commit()
+
+                elif active_scan.scan_type in ["common", "port_range", "full_tcp", "single_port"]:
+                    # Port scan
+                    result_data = await scanner.scan_ports(
+                        active_scan.target_cidr, getattr(active_scan, "ports", None) or []
+                    )
+                    active_scan.hosts_found = result_data.get("hosts_found", 0)
+                    await session.commit()
+
+                # Update scan status to completed
+                active_scan.status = "completed"
+                active_scan.completed_at = datetime.now()
+                await session.commit()
+
+                logger.info(
+                    "Scan completed successfully",
+                    scan_id=active_scan.id,
+                    hosts_found=active_scan.hosts_found,
+                )
+
+            except asyncio.TimeoutError:
+                active_scan.status = "failed"
+                active_scan.completed_at = datetime.now()
+                await session.commit()
+                logger.warning("Scan timed out", scan_id=active_scan.id)
+
+            except Exception as e:
+                active_scan.status = "failed"
+                active_scan.completed_at = datetime.now()
+                await session.commit()
+                logger.error(
+                    "Scan failed with error",
+                    scan_id=active_scan.id,
+                    error=str(e))
+
+        finally:
+            await session.close()
+
     async def _check_running_timeouts(self) -> None:
         """Check for running scans that have exceeded their timeout."""
         session = AsyncSessionLocal()
