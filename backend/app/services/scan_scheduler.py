@@ -441,8 +441,7 @@ class ScanQueueProcessor:
                             .where(Scan.id == scan.id)
                             .values(
                                 status="failed",
-                                completed_at=datetime.now(),
-                                notes=f"Scan failed due to timeout (ran for {elapsed.total_seconds():.0f}s, exceeded {timeout_seconds}s)"
+                                completed_at=datetime.now()
                             )
                         )
                         await session.execute(stmt)
@@ -487,8 +486,7 @@ class ScanQueueProcessor:
                             .where(Scan.id == scan.id)
                             .values(
                                 status="failed",
-                                completed_at=datetime.now(),
-                                notes=f"Scan failed due to pending timeout (waited {age.total_seconds():.0f}s)"
+                                completed_at=datetime.now()
                             )
                         )
                         await session.execute(stmt)
