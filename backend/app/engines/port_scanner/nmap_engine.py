@@ -230,7 +230,7 @@ class NmapPortScanner:
         return cmd
 
     async def scan_single_port(
-        self, ip_address: str, port: int, protocol: str = "tcp"
+        self, ip_address: str, port: int, protocol: str = "tcp", scan=None
     ) -> Dict:
         """
         Scan a single port on a target.
@@ -239,6 +239,7 @@ class NmapPortScanner:
             ip_address: Target IP
             port: Port number to scan
             protocol: Protocol (tcp/udp)
+            scan: Optional Scan model instance for progress tracking
 
         Returns:
             Scan result dict with raw_xml field
@@ -282,12 +283,17 @@ class NmapPortScanner:
             else:
                 scan_result["error"] = result["stderr"]
 
+            # Update progress during single port scan
+            if scan is not None and hasattr(scan, 'progress'):
+                # For single port scans, progress increases by 85 per port
+                scan.progress = min(scan.progress + 85, 95)
+
             return scan_result
         finally:
             await self._release_scan_lock()
 
     async def scan_ports(
-        self, ip_address: str, ports: List[int], protocol: str = "tcp"
+        self, ip_address: str, ports: List[int], protocol: str = "tcp", scan=None
     ) -> Dict:
         """
         Scan multiple ports on a target.
@@ -296,6 +302,7 @@ class NmapPortScanner:
             ip_address: Target IP
             ports: List of port numbers
             protocol: Protocol (tcp/udp)
+            scan: Optional Scan model instance for progress tracking
 
         Returns:
             Scan result dict with raw_xml field
@@ -343,12 +350,29 @@ class NmapPortScanner:
             else:
                 scan_result["error"] = result["stderr"]
 
+            # Update progress during port scan
+            if scan is not None and hasattr(scan, 'progress') and ports:
+                ports_scanned = len(ports)
+                if scan_result.get("open_ports"):
+                    ports_scanned += len(scan_result["open_ports"])
+                if scan_result.get("closed_ports"):
+                    ports_scanned += len(scan_result["closed_ports"])
+                
+                # Estimate total ports based on scan type (we'll use a multiplier)
+                # For common ports scan, assume 20 total; for ranges, use the provided count
+                total_ports_estimate = max(ports_scanned * 2, len(ports))
+                
+                if total_ports_estimate > 0:
+                    progress_per_port = (85 / total_ports_estimate) if total_ports_estimate > 0 else 1
+                    calculated_progress = min(10 + int((ports_scanned / max(total_ports_estimate, 1)) * 85), 95)
+                    scan.progress = calculated_progress
+
             return scan_result
         finally:
             await self._release_scan_lock()
 
     async def scan_port_range(
-        self, ip_address: str, start_port: int, end_port: int, protocol: str = "tcp"
+        self, ip_address: str, start_port: int, end_port: int, protocol: str = "tcp", scan=None
     ) -> Dict:
         """
         Scan a range of ports on a target.
@@ -358,6 +382,7 @@ class NmapPortScanner:
             start_port: First port in range
             end_port: Last port in range
             protocol: Protocol (tcp/udp)
+            scan: Optional Scan model instance for progress tracking
 
         Returns:
             Scan result dict with raw_xml field
@@ -404,28 +429,40 @@ class NmapPortScanner:
             else:
                 scan_result["error"] = result["stderr"]
 
+            # Update progress during port range scan
+            if scan is not None and hasattr(scan, 'progress'):
+                total_ports = end_port - start_port + 1
+                ports_scanned = len(scan_result.get("open_ports", [])) + len(scan_result.get("closed_ports", []))
+                
+                if total_ports > 0:
+                    progress_per_port = (85 / total_ports) if total_ports > 0 else 1
+                    calculated_progress = min(10 + int((ports_scanned / max(total_ports, 1)) * 85), 95)
+                    scan.progress = calculated_progress
+
             return scan_result
         finally:
             await self._release_scan_lock()
 
-    async def scan_common_ports(self, ip_address: str) -> Dict:
+    async def scan_common_ports(self, ip_address: str, scan=None) -> Dict:
         """
         Scan common ports on a target.
 
         Args:
             ip_address: Target IP
+            scan: Optional Scan model instance for progress tracking
 
         Returns:
             Scan result dict
         """
-        return await self.scan_ports(ip_address, self.COMMON_PORTS)
+        return await self.scan_ports(ip_address, self.COMMON_PORTS, scan=scan)
 
-    async def full_scan(self, ip_address: str) -> Dict:
+    async def full_scan(self, ip_address: str, scan=None) -> Dict:
         """
         Perform a full TCP port scan (1-65535).
 
         Args:
             ip_address: Target IP
+            scan: Optional Scan model instance for progress tracking
 
         Returns:
             Scan result dict with raw_xml field
@@ -462,6 +499,16 @@ class NmapPortScanner:
                 scan_result["raw_xml"] = result["stdout"]
             else:
                 scan_result["error"] = result["stderr"]
+
+            # Update progress during full scan
+            if scan is not None and hasattr(scan, 'progress'):
+                total_ports = 65535
+                ports_scanned = len(scan_result.get("open_ports", [])) + len(scan_result.get("closed_ports", []))
+                
+                if total_ports > 0:
+                    progress_per_port = (85 / total_ports) if total_ports > 0 else 1
+                    calculated_progress = min(10 + int((ports_scanned / max(total_ports, 1)) * 85), 95)
+                    scan.progress = calculated_progress
 
             return scan_result
         finally:

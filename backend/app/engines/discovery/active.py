@@ -25,13 +25,14 @@ class ActiveDiscoveryEngine:
         self.logger = logger.bind(engine="active_discovery")
 
     async def discover_with_nmap(
-            self, target: str, rate_limit: str = "medium") -> Dict:
+            self, target: str, rate_limit: str = "medium", scan=None) -> Dict:
         """
         Discover hosts using Nmap ping scan.
 
         Args:
             target: Target IP or CIDR range
             rate_limit: Scan speed preset
+            scan: Optional Scan model instance for progress tracking
 
         Returns:
             Discovery results
@@ -68,7 +69,24 @@ class ActiveDiscoveryEngine:
 
         if result["returncode"] == 0:
             self.logger.info("Nmap scan completed successfully")
-            return self._parse_nmap_output(result["stdout"])
+            hosts = self._parse_nmap_output(result["stdout"])
+            
+            # Update progress during discovery based on hosts discovered
+            if scan is not None and hasattr(scan, 'progress'):
+                import ipaddress
+                try:
+                    network = ipaddress.ip_network(target, strict=False)
+                    total_hosts = network.host_count if hasattr(network, 'host_count') else (2 ** (32 - int(target.split('/')[-1] if '/' in target else 32)))
+                    discovered_count = len(hosts.get("hosts", []))
+                    if total_hosts > 0:
+                        progress_per_host = (85 / total_hosts) if total_hosts > 0 else 1
+                        calculated_progress = min(10 + int(discovered_count * progress_per_host), 95)
+                        scan.progress = calculated_progress
+                except Exception:
+                    # If we can't calculate precise progress, just update to 95
+                    scan.progress = 95
+            
+            return hosts
         elif result.get("timed_out"):
             self.logger.error("Nmap scan timed out", target=target)
             return {"error": "Scan timeout", "hosts_found": 0}
