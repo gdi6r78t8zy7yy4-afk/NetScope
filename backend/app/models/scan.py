@@ -24,7 +24,7 @@ class Scan(Base):
     status = Column(
         String(20), default="pending"
     )  # pending, running, completed, cancelled
-    progress = Column(Integer, default=0)
+    progress = Column(Integer, default=0, nullable=False)
 
     # Scan configuration
     target_cidr = Column(String(100), nullable=False)
@@ -56,7 +56,7 @@ class ScanTarget(Base):
     status = Column(
         String(20), default="pending"
     )  # pending, scanning, completed, failed
-    progress = Column(Integer, default=0)
+    progress = Column(Integer, default=0, nullable=False)
 
     # Timing
     started_at = Column(DateTime, nullable=True)

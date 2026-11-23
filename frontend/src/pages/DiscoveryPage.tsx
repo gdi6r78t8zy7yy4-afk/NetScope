@@ -413,26 +413,79 @@ export function DiscoveryPage() {
           <CardContent className="space-y-3">
             {activeScans.map((scan) => (
               <div key={scan.id} className="bg-slate-800/50 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium text-emerald-400">{scan.name}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    scan.status === 'running' ? 'bg-blue-900 text-blue-200' : 'bg-yellow-900 text-yellow-200'
-                  }`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-emerald-400 block truncate">{scan.name}</span>
+                    <div className="text-xs text-slate-500 mt-1">{scan.target_cidr}</div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs px-2 py-0.5 ${
+                      scan.status === 'running'
+                        ? 'border-blue-500 text-blue-400 bg-blue-900/20'
+                        : scan.status === 'pending'
+                          ? 'border-yellow-500 text-yellow-400 bg-yellow-900/20'
+                          : 'border-slate-500 text-slate-400 bg-slate-700/30'
+                    }`}
+                  >
                     {scan.status}
-                  </span>
+                  </Badge>
                 </div>
-                
-                <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                  <span>Target: {scan.target_cidr}</span>
-                  <span>{scan.progress}%</span>
-                </div>
-                
+
+                {/* Show started at timestamp for running scans */}
+                {scan.started_at && scan.status === 'running' && (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
+                    <span>Started At:</span>
+                    <span className="font-mono text-slate-400">
+                      {new Date(scan.started_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Show progress bar for running scans */}
                 {scan.status === 'running' && (
-                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 transition-all duration-300"
-                      style={{ width: `${scan.progress}%` }}
-                    />
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>Progress</span>
+                      <span>{scan.progress}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-300"
+                        style={{ width: `${scan.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Completed/Failed/Cancelled status without progress */}
+                {scan.status === 'completed' && (
+                  <div className="text-xs text-emerald-500">
+                    Completed at {scan.completed_at && new Date(scan.completed_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                )}
+
+                {(scan.status === 'failed' || scan.status === 'cancelled') && (
+                  <div className="text-xs text-red-500">
+                    {scan.status === 'failed' ? 'Failed' : 'Cancelled'} at {scan.completed_at && new Date(scan.completed_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </div>
                 )}
               </div>

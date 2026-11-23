@@ -317,6 +317,8 @@ class ScanQueueProcessor:
                     target=active_scan.target_cidr,
                 )
 
+                # Set progress to failure percentage before failing
+                active_scan.progress = 0
                 stmt = (
                     update(Scan)
                     .where(Scan.id == active_scan.id)
@@ -326,20 +328,40 @@ class ScanQueueProcessor:
                 await session.commit()
                 return
 
+            # Set progress to 10 when scan starts
+            active_scan.progress = 10
+            await session.commit()
+
             try:
                 if active_scan.scan_type == "discovery":
                     discovery_engine = ActiveDiscoveryEngine(
                         max_concurrent_hosts=5, scan_timeout=settings.scan_timeout_seconds
                     )
 
+                    # Get total hosts estimate from CIDR
+                    try:
+                        import ipaddress
+                        network = ipaddress.ip_network(active_scan.target_cidr, strict=False)
+                        total_hosts = network.host_count if hasattr(network, 'host_count') else (2 ** (32 - int(active_scan.target_cidr.split('/')[-1] if '/' in active_scan.target_cidr else 32)))
+                    except Exception:
+                        total_hosts = 100  # Default estimate
+
                     result_data = await discovery_engine.discover_with_nmap(
                         active_scan.target_cidr, rate_limit=getattr(
-                            active_scan, "rate_limit", "medium")
+                            active_scan, "rate_limit", "medium"), scan=active_scan
                     )
 
                     # Parse and save discovery results
                     discovered_hosts = result_data.get("hosts", [])
                     active_scan.hosts_found = len(discovered_hosts)
+
+                    # Update progress based on hosts discovered
+                    if total_hosts > 0:
+                        hosts_discovered = len(discovered_hosts)
+                        progress_per_host = (90 / total_hosts) if total_hosts > 0 else 0
+                        calculated_progress = min(10 + int(hosts_discovered * progress_per_host), 95)
+                        active_scan.progress = calculated_progress
+                        await session.commit()
 
                     # Save assets
                     if discovered_hosts:
@@ -380,13 +402,27 @@ class ScanQueueProcessor:
 
                 elif active_scan.scan_type in ["common", "port_range", "full_tcp", "single_port"]:
                     # Port scan
-                    result_data = await scanner.scan_ports(
-                        active_scan.target_cidr, getattr(active_scan, "ports", None) or []
-                    )
+                    ports_list = getattr(active_scan, "ports", None) or []
+                    if isinstance(ports_list, str):
+                        try:
+                            import json
+                            ports_list = json.loads(ports_list)
+                        except Exception:
+                            ports_list = []
+
+                    if active_scan.scan_type == "full_tcp":
+                        result_data = await scanner.full_scan(active_scan.target_cidr, scan=active_scan)
+                    else:
+                        result_data = await scanner.scan_ports(
+                            active_scan.target_cidr, ports_list if ports_list else [], scan=active_scan
+                        )
                     active_scan.hosts_found = result_data.get("hosts_found", 0)
+
+                    # Update progress for port scan (already done in scanner methods)
                     await session.commit()
 
-                # Update scan status to completed
+                # Update scan status to completed with progress 100
+                active_scan.progress = 100
                 active_scan.status = "completed"
                 active_scan.completed_at = datetime.now()
                 await session.commit()
@@ -395,6 +431,7 @@ class ScanQueueProcessor:
                     "Scan completed successfully",
                     scan_id=active_scan.id,
                     hosts_found=active_scan.hosts_found,
+                    progress=active_scan.progress,
                 )
 
             except asyncio.TimeoutError:
