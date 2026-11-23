@@ -494,14 +494,6 @@ export function DiscoveryPage() {
         </Card>
       )}
 
-      {/* Scan History Section - REMOVED: Moved to dedicated Scan History page */}
-      {/* TODO: Remove this commented code when Scan History page is ready */}
-      {/* 
-      {completedScans.length > 0 && (
-        <ScanHistory scans={completedScans} onSelectAsset={(assetId) => setSelectedAssetId(assetId)} />
-      )}
-      */}
-
       {/* Sidebar Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Sidebar - Host List */}
