@@ -10,6 +10,15 @@ interface Asset {
   ip_address: string
 }
 
+interface Scan {
+  id: number
+  name: string
+  status: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'
+  progress: number
+  target_cidr: string
+  scan_type: string
+}
+
 export function DashboardPage() {
   const navigate = useNavigate()
   
@@ -21,10 +30,13 @@ export function DashboardPage() {
     vulnerabilities: 0,
     kevFindings: 0
   })
+  const [activeScans, setActiveScans] = useState<Scan[]>([])
 
   useEffect(() => {
     // Load stats and assets from API
     fetchData()
+    const interval = window.setInterval(fetchData, 2000)
+    return () => window.clearInterval(interval)
   }, [])
 
   async function fetchData() {
@@ -44,9 +56,14 @@ export function DashboardPage() {
       ])
 
       // Using underscore prefix to indicate unused variable
-      let _scansData: { data?: unknown }[] = []
+      let scansData: Scan[] = []
       if (scansResponse.ok) {
-        _scansData = await scansResponse.json()
+        scansData = await scansResponse.json()
+        setActiveScans(scansData.filter((scan) =>
+          scan.status === 'pending' || scan.status === 'running'
+        ))
+      } else {
+        setActiveScans([])
       }
 
       let vulnData: { severity?: string }[] = []
@@ -81,6 +98,52 @@ export function DashboardPage() {
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-slate-400 mt-1">Network Overview</p>
       </div>
+
+      {activeScans.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Active Scans ({activeScans.length})</CardTitle>
+            <CardDescription>Scans currently queued or running</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {activeScans.map((scan) => (
+              <button
+                key={scan.id}
+                type="button"
+                className="w-full text-left bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-blue-500/50"
+                onClick={() => navigate('/history')}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-blue-400">{scan.name}</span>
+                  <span className="text-xs text-slate-400">{scan.status}</span>
+                </div>
+                <div className="text-xs text-slate-500 mb-2">
+                  {scan.scan_type} · {scan.target_cidr}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>Progress</span>
+                    <span>{scan.progress ?? 0}%</span>
+                  </div>
+                  <div
+                    className="h-2 bg-slate-700 rounded-full overflow-hidden"
+                    role="progressbar"
+                    aria-label={`Scan progress: ${scan.progress ?? 0}%`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={scan.progress ?? 0}
+                  >
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-300"
+                      style={{ width: `${Math.max(0, Math.min(100, scan.progress ?? 0))}%` }}
+                    />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

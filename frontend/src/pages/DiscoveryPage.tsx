@@ -28,19 +28,16 @@ interface Scan {
   id: number
   name: string
   scan_type: string
-  status: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'
+  status: 'pending' | 'running'
   progress: number
   target_cidr: string
   created_at?: string
   started_at?: string
-  completed_at?: string
   hosts_found?: number
   ports_found?: number
 }
 
-// Host Details Panel Component
 function HostDetails({ asset }: { asset: Asset }) {
-  // Calculate port statistics from real API
   const [stats, setStats] = useState({
     openPorts: 0,
     closedPorts: 0,
@@ -48,7 +45,6 @@ function HostDetails({ asset }: { asset: Asset }) {
     services: 0
   })
   
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loadingStats, setLoadingStats] = useState(false)
   
   useEffect(() => {
@@ -79,7 +75,6 @@ function HostDetails({ asset }: { asset: Asset }) {
 
   return (
     <div className="space-y-6">
-      {/* Header Card */}
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="flex justify-between items-start">
@@ -116,26 +111,12 @@ function HostDetails({ asset }: { asset: Asset }) {
         </CardContent>
       </Card>
 
-      {/* Stats Card */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard
-          label="Open Ports"
-          value={stats.openPorts.toString()}
-          color="emerald"
-        />
-        <StatCard
-          label="Closed Ports"
-          value={stats.closedPorts.toString()}
-          color="red"
-        />
-        <StatCard
-          label="Filtered Ports"
-          value={stats.filteredPorts.toString()}
-          color="yellow"
-        />
+        <StatCard label="Open Ports" value={stats.openPorts.toString()} color="emerald" />
+        <StatCard label="Closed Ports" value={stats.closedPorts.toString()} color="red" />
+        <StatCard label="Filtered Ports" value={stats.filteredPorts.toString()} color="yellow" />
       </div>
 
-      {/* Host Details */}
       <Card>
         <CardHeader>
           <CardTitle>Host Information</CardTitle>
@@ -162,7 +143,6 @@ function HostDetails({ asset }: { asset: Asset }) {
         </CardContent>
       </Card>
 
-      {/* Vulnerabilities Section */}
       <Card>
         <CardHeader>
           <CardTitle>Vulnerabilities</CardTitle>
@@ -215,30 +195,19 @@ function StatCard({ label, value, color = 'slate', highlight = false }: { label:
   )
 }
 
-
-
 export function DiscoveryPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [scanInProgress, setScanInProgress] = useState(false)
   const [activeScans, setActiveScans] = useState<Scan[]>([])
-  const [scans, setScans] = useState<Scan[]>([])
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Filter completed and failed scans for history
-  const completedScans = useMemo(
-    () => scans.filter((s) => s.status === 'completed' || s.status === 'failed'),
-    [scans]
-  )
-
-  // Get selected asset
   const selectedAsset = useMemo(
     () => assets.find((a) => a.id === selectedAssetId),
     [assets, selectedAssetId]
   )
 
-  // Filter assets by search term
   const filteredAssets = useMemo(() => {
     if (!searchTerm) return assets
     const lowerSearch = searchTerm.toLowerCase()
@@ -253,21 +222,20 @@ export function DiscoveryPage() {
   useEffect(() => {
     console.warn('=== Component Mounted - Loading Data ===')
     fetchAssets()
-    fetchAllScans()
   }, [])
 
   async function fetchAssets() {
-    console.warn('=== Fetching Assets ===');
+    console.warn('=== Fetching Assets ===')
     try {
       const response = await fetch(getApiEndpoint('/api/v1/assets'))
-      console.warn('Fetch assets response status:', response.status);
+      console.warn('Fetch assets response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
-        console.warn('Assets received:', data.length, 'assets');
+        console.warn('Assets received:', data.length, 'assets')
         setAssets(data)
       } else {
-        console.error('Failed to fetch assets: HTTP', response.status);
+        console.error('Failed to fetch assets: HTTP', response.status)
       }
     } catch (error) {
       console.error('Failed to fetch assets:', error)
@@ -276,124 +244,102 @@ export function DiscoveryPage() {
     }
   }
 
-  async function fetchAllScans() {
-    console.warn('=== Fetching All Scans ===');
-    try {
-      const response = await fetch(getApiEndpoint('/api/v1/scans'))
-      console.warn('Fetch scans response status:', response.status);
-      
-      if (response.ok) {
-        const allScans = await response.json()
-        console.warn('All scans received:', allScans.length, 'scans');
-        
-        // Store all scans for history (create new array reference to force re-render)
-        setScans([...allScans])
-        
-        // Filter for running or pending scans for active scans section
-        const active = allScans.filter((s: Scan) => s.status === 'running' || s.status === 'pending')
-        console.warn('Active scans (running/pending):', active.length, 'scans');
-        
-        setActiveScans(active)
-        
-        // If any scan is still running, keep checking for updates
-        if (active.some(s => s.status === 'running')) {
-          console.warn('Scans are running, setting up polling...')
-          setTimeout(fetchAllScans, 2000)
-        } else {
-          console.warn('No scans running, not polling further')
-        }
-      } else {
-        console.error('Failed to fetch scans: HTTP', response.status);
-      }
-    } catch (error) {
-      console.error('Failed to fetch scans:', error)
-    }
-  }
-
   async function runDiscoveryScan() {
-    console.warn('=== Discovery Scan Button Clicked ===');
+    console.warn('=== Discovery Scan Button Clicked ===')
     setScanInProgress(true)
     try {
       console.warn('Step 1: Creating discovery scan...')
-      // Create a new scan
       const scanPayload = {
         name: `Discovery Scan ${new Date().toISOString()}`,
         scan_type: 'discovery',
         target_cidr: '192.168.1.0/24',
         rate_limit: 'medium'
-      };
-      console.warn('Scan payload:', scanPayload);
+      }
+      console.warn('Scan payload:', scanPayload)
       
       const response = await fetch(getApiEndpoint('/api/v1/scans'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(scanPayload)
-      });
+      })
       
-      console.warn('Step 1 - Create scan response status:', response.status);
+      console.warn('Step 1 - Create scan response status:', response.status)
       
       if (response.ok) {
-        const scan = await response.json();
-        console.warn('Step 1 - Discovery scan created:', scan);
-        console.warn('Scan ID:', scan.id, 'Status:', scan.status);
+        const scan = await response.json()
+        console.warn('Step 1 - Discovery scan created:', scan)
+        console.warn('Scan ID:', scan.id, 'Status:', scan.status)
         
-        // Run the newly created scan
         console.warn('Step 2: Running scan ID', scan.id, '...')
         const runResponse = await fetch(getApiEndpoint(`/api/v1/scans/${scan.id}/run`), {
-          method: 'POST',
-        });
+          method: 'POST'
+        })
         
-        console.warn('Step 2 - Run scan response status:', runResponse.status);
+        console.warn('Step 2 - Run scan response status:', runResponse.status)
         
         if (runResponse.ok) {
-          const runResult = await runResponse.json();
-          console.warn('Step 2 - Discovery scan started:', runResult);
+          const runResult = await runResponse.json()
+          console.warn('Step 2 - Discovery scan started:', runResult)
+          console.warn('Final scan status:', runResult.status)
           
-          // Check if the scan was created with running status or completed
-          console.warn('Final scan status:', runResult.status);
-          
-          // Refresh all scans to update both active and history
-          await fetchAllScans();
-          
-          // Also refresh assets since discovery scans create new assets
-          setTimeout(() => {
-            fetchAssets();
-          }, 1000);
+          if (runResult.status === 'running' || runResult.status === 'pending') {
+            setActiveScans([runResult])
+            console.warn('Started polling for active scans...')
+            pollActiveScans(runResult.id)
+          }
         } else {
-          const error = await runResponse.json();
-          console.error('Step 2 - Failed to start scan:', error);
+          const error = await runResponse.json()
+          console.error('Step 2 - Failed to start scan:', error)
         }
       } else {
-        const error = await response.json();
-        console.error('Step 1 - Failed to create scan:', error);
+        const error = await response.json()
+        console.error('Step 1 - Failed to create scan:', error)
       }
     } catch (error) {
-      console.error('Error creating discovery scan:', error);
+      console.error('Error creating discovery scan:', error)
     } finally {
-      console.warn('=== Discovery Scan Function Completed ===');
+      console.warn('=== Discovery Scan Function Completed ===')
       setScanInProgress(false)
     }
   }
 
-  // Add useEffect to log scan status changes
-  useEffect(() => {
-    console.warn('Active scans updated:', activeScans.length, 'scans');
-    activeScans.forEach((scan) => {
-      console.warn(`  - Scan ${scan.id}: ${scan.name} (${scan.status})`);
-    });
-  }, [activeScans]);
+  async function pollActiveScans(scanId: number) {
+    console.warn('=== Polling active scans ===')
+    try {
+      const response = await fetch(getApiEndpoint('/api/v1/scans?status=running&status=pending'))
+      console.warn('Poll response status:', response.status)
+      
+      if (response.ok) {
+        const active = await response.json()
+        console.warn('Active scans received:', active.length, 'scans')
 
-  // Log scan history updates
-  useEffect(() => {
-    console.warn('Completed scans updated:', completedScans.length, 'scans');
-    if (completedScans.length > 0) {
-      completedScans.forEach((scan) => {
-        console.warn(`  - Scan ${scan.id}: ${scan.name} (${scan.status}, hosts: ${scan.hosts_found})`);
-      });
+        const activeOnly = active.filter((s: Scan) =>
+          s.status === 'pending' || s.status === 'running'
+        )
+        setActiveScans(activeOnly)
+        
+        if (activeOnly.length > 0) {
+          console.warn('Scans are running, continuing polling...')
+          setTimeout(() => pollActiveScans(scanId), 2000)
+        } else {
+          console.warn('No scans running, polling stopped')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to poll active scans:', error)
     }
-  }, [completedScans]);
+  }
+
+  useEffect(() => {
+    console.warn('Active scans updated:', activeScans.length, 'scans')
+    if (activeScans.length > 0) {
+      activeScans.forEach((scan) => {
+        console.warn(`  - Scan ${scan.id}: ${scan.name} (${scan.status})`)
+      })
+    }
+  }, [activeScans])
 
   return (
     <div className="p-6 space-y-6">
@@ -404,7 +350,6 @@ export function DiscoveryPage() {
         </p>
       </div>
 
-      {/* Active Scans Section */}
       {activeScans.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -432,7 +377,6 @@ export function DiscoveryPage() {
                   </Badge>
                 </div>
 
-                {/* Show started at timestamp for running scans */}
                 {scan.started_at && scan.status === 'running' && (
                   <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
                     <span>Started At:</span>
@@ -442,61 +386,39 @@ export function DiscoveryPage() {
                         day: 'numeric',
                         year: 'numeric',
                         hour: '2-digit',
-                        minute: '2-digit',
+                        minute: '2-digit'
                       })}
                     </span>
                   </div>
                 )}
 
-                {/* Show progress bar for running scans */}
-                {scan.status === 'running' && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-slate-500">
-                      <span>Progress</span>
-                      <span>{scan.progress}%</span>
-                    </div>
-                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 transition-all duration-300"
-                        style={{ width: `${scan.progress}%` }}
-                      />
-                    </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>Progress</span>
+                    <span>{scan.progress ?? 0}%</span>
                   </div>
-                )}
+                  <div
+                    className="h-2 bg-slate-700 rounded-full overflow-hidden"
+                    role="progressbar"
+                    aria-label={`Discovery scan progress: ${scan.progress ?? 0}%`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={scan.progress ?? 0}
+                  >
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-300"
+                      style={{ width: `${Math.max(0, Math.min(100, scan.progress ?? 0))}%` }}
+                    />
+                  </div>
+                </div>
 
-                {/* Completed/Failed/Cancelled status without progress */}
-                {scan.status === 'completed' && (
-                  <div className="text-xs text-emerald-500">
-                    Completed at {scan.completed_at && new Date(scan.completed_at).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                )}
-
-                {(scan.status === 'failed' || scan.status === 'cancelled') && (
-                  <div className="text-xs text-red-500">
-                    {scan.status === 'failed' ? 'Failed' : 'Cancelled'} at {scan.completed_at && new Date(scan.completed_at).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                )}
               </div>
             ))}
           </CardContent>
         </Card>
       )}
 
-      {/* Sidebar Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Sidebar - Host List */}
         <div className="lg:col-span-1 space-y-4">
           <Card className="h-[calc(100vh-250px)] lg:h-auto flex flex-col">
             <CardHeader className="pb-3 border-b border-slate-800">
@@ -504,7 +426,6 @@ export function DiscoveryPage() {
               <CardDescription>All discovered devices</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto max-h-[600px] lg:max-h-none pr-2 scrollbar-thin">
-              {/* Search */}
               <div className="mb-4 space-y-2">
                 <Input
                   type="text"
@@ -565,7 +486,6 @@ export function DiscoveryPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle>Actions</CardTitle>
@@ -615,7 +535,6 @@ export function DiscoveryPage() {
           </Card>
         </div>
 
-        {/* Right Panel - Host Details */}
         <div className="lg:col-span-3">
           {selectedAsset ? (
             <HostDetails asset={selectedAsset} />

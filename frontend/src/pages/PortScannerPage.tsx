@@ -149,7 +149,17 @@ export function PortScannerPage() {
 
       if (response.ok) {
         const data = await response.json()
-        alert(`Scan created with ID: ${data.id}`)
+        const runResponse = await fetch(getApiEndpoint(`/api/v1/scans/${data.id}/run`), {
+          method: 'POST'
+        })
+        if (!runResponse.ok) {
+          const error = await runResponse.json()
+          throw new Error(error.detail || 'Failed to start scan')
+        }
+        alert(`Scan started with ID: ${data.id}`)
+      } else {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to create scan')
       }
     } catch (error) {
       console.error('Failed to create scan:', error)

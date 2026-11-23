@@ -15,7 +15,7 @@ from app.core.authorization_service import get_authorization_service
 from app.engines.scanner.parser import parse_nmap_xml
 from app.engines.port_scanner.nmap_engine import NmapPortScanner
 import json
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -249,24 +249,24 @@ async def run_scan(
 
     # Always mark scans as pending to ensure background execution via queue processor
     # This prevents HTTP requests from blocking while scans run (can take minutes)
-    if scan.status != "pending":
+    if scan.status not in ("pending", "running"):
         logger.info(
             "Scan queued for background execution",
             scan_id=scan.id,
             running_count=len(running_scans),
             max_concurrent=settings.max_concurrent_scans,
         )
-        scan.status = "pending"
-    
-    # Commit the status update
+    if scan.status == "running":
+        raise HTTPException(status_code=409, detail="Scan is already running")
+
+    scan.status = "pending"
+    scan.started_at = None
+    scan.completed_at = None
+    scan.error_message = None
+
     await db.commit()
-    
-    return {
-        "scan_id": scan.id,
-        "status": "pending",
-        "message": f"Scan queued for background execution. The queue processor will run it when capacity becomes available.",
-        "queue_position": 0,
-    }
+    await db.refresh(scan)
+    return scan
 
 
 @router.get("/scans/{scan_id}/targets", response_model=list[ScanTargetSchema])

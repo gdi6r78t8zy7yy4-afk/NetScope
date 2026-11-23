@@ -40,6 +40,9 @@ class Scan(Base):
     ports_found = Column(Integer, default=0)
     services_found = Column(Integer, default=0)
 
+    # Error information
+    error_message = Column(Text, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())

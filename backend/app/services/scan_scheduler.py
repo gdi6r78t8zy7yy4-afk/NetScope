@@ -167,127 +167,6 @@ class ScanQueueProcessor:
             await session.close()
 
         return False
-
-    async def _execute_scan(self, scan: Scan) -> None:
-        """Execute a single scan and update its status."""
-        from app.engines.port_scanner.nmap_engine import NmapPortScanner
-        from app.engines.discovery.active import ActiveDiscoveryEngine
-        from app.core.authorization_service import get_authorization_service
-
-        # Create a new session for scan execution
-        session = AsyncSessionLocal()
-        try:
-            scanner = NmapPortScanner()
-
-            # Validate target
-            auth_service = get_authorization_service()
-            validation_result = auth_service.validate_target(scan.target_cidr)
-
-            if not validation_result.get("valid"):
-                logger.warning(
-                    "Scan target not authorized",
-                    scan_id=scan.id,
-                    target=scan.target_cidr,
-                )
-
-                stmt = (
-                    update(Scan)
-                    .where(Scan.id == scan.id)
-                    .values(status="failed", completed_at=datetime.now())
-                )
-                await session.execute(stmt)
-                await session.commit()
-                return
-
-            try:
-                if scan.scan_type == "discovery":
-                    discovery_engine = ActiveDiscoveryEngine(
-                        max_concurrent_hosts=5, scan_timeout=settings.scan_timeout_seconds
-                    )
-
-                    result_data = await discovery_engine.discover_with_nmap(
-                        scan.target_cidr, rate_limit=getattr(
-                            scan, "rate_limit", "medium")
-                    )
-
-                    # Parse and save discovery results
-                    discovered_hosts = result_data.get("hosts", [])
-                    scan.hosts_found = len(discovered_hosts)
-
-                    # Save assets
-                    if discovered_hosts:
-                        from app.models.asset import Asset
-
-                        for host in discovered_hosts:
-                            ip = (
-                                host.get("ip_address")
-                                or host.get("ip")
-                                or host.get("ipaddress")
-                            )
-                            if not ip:
-                                continue
-
-                            # Check if asset already exists
-                            existing_result = await session.execute(
-                                select(Asset).where(Asset.ip_address == ip)
-                            )
-                            existing_asset = existing_result.scalars().first()
-
-                            if not existing_asset:
-                                new_asset = Asset(
-                                    ip_address=ip,
-                                    mac_address=host.get(
-                                        "mac_address") or host.get("mac"),
-                                    hostname=host.get("hostname", ""),
-                                    device_type=host.get("device_type")
-                                    or host.get("device"),
-                                    operating_system=host.get("operating_system")
-                                    or host.get("os"),
-                                    confidence_level=host.get("confidence")
-                                    or host.get("confidence_level")
-                                    or "low",
-                                )
-                                session.add(new_asset)
-
-                    await session.commit()
-
-                elif scan.scan_type in ["common", "port_range", "full_tcp", "single_port"]:
-                    # Port scan
-                    result_data = await scanner.scan_ports(
-                        scan.target_cidr, getattr(scan, "ports", None) or []
-                    )
-                    scan.hosts_found = result_data.get("hosts_found", 0)
-                    await session.commit()
-
-                # Update scan status to completed
-                scan.status = "completed"
-                scan.completed_at = datetime.now()
-                await session.commit()
-
-                logger.info(
-                    "Scan completed successfully",
-                    scan_id=scan.id,
-                    hosts_found=scan.hosts_found,
-                )
-
-            except asyncio.TimeoutError:
-                scan.status = "failed"
-                scan.completed_at = datetime.now()
-                await session.commit()
-                logger.warning("Scan timed out", scan_id=scan.id)
-
-            except Exception as e:
-                scan.status = "failed"
-                scan.completed_at = datetime.now()
-                await session.commit()
-                logger.error(
-                    "Scan failed with error",
-                    scan_id=scan.id,
-                    error=str(e))
-
-        finally:
-            await session.close()
-
     async def _execute_scan(self, scan: Scan) -> None:
         """Execute a single scan and update its status."""
         from app.engines.port_scanner.nmap_engine import NmapPortScanner
@@ -319,10 +198,11 @@ class ScanQueueProcessor:
 
                 # Set progress to failure percentage before failing
                 active_scan.progress = 0
+                error_msg = f"Scan target not authorized: {active_scan.target_cidr}"
                 stmt = (
                     update(Scan)
                     .where(Scan.id == active_scan.id)
-                    .values(status="failed", completed_at=datetime.now())
+                    .values(status="failed", completed_at=datetime.now(), error_message=error_msg)
                 )
                 await session.execute(stmt)
                 await session.commit()
@@ -337,6 +217,8 @@ class ScanQueueProcessor:
                     discovery_engine = ActiveDiscoveryEngine(
                         max_concurrent_hosts=5, scan_timeout=settings.scan_timeout_seconds
                     )
+                    active_scan.progress = 25
+                    await session.commit()
 
                     # Get total hosts estimate from CIDR
                     try:
@@ -400,7 +282,7 @@ class ScanQueueProcessor:
 
                     await session.commit()
 
-                elif active_scan.scan_type in ["common", "port_range", "full_tcp", "single_port"]:
+                elif active_scan.scan_type in ["common", "full", "top100", "top1000", "full_tcp", "port_range", "single_port"]:
                     # Port scan
                     ports_list = getattr(active_scan, "ports", None) or []
                     if isinstance(ports_list, str):
@@ -410,8 +292,10 @@ class ScanQueueProcessor:
                         except Exception:
                             ports_list = []
 
-                    if active_scan.scan_type == "full_tcp":
+                    if active_scan.scan_type == "full" or active_scan.scan_type == "full_tcp":
                         result_data = await scanner.full_scan(active_scan.target_cidr, scan=active_scan)
+                    elif active_scan.scan_type == "common":
+                        result_data = await scanner.scan_common_ports(active_scan.target_cidr, scan=active_scan)
                     else:
                         result_data = await scanner.scan_ports(
                             active_scan.target_cidr, ports_list if ports_list else [], scan=active_scan
@@ -437,12 +321,14 @@ class ScanQueueProcessor:
             except asyncio.TimeoutError:
                 active_scan.status = "failed"
                 active_scan.completed_at = datetime.now()
+                active_scan.error_message = f"Scan execution timed out after {settings.scan_timeout_seconds} seconds"
                 await session.commit()
                 logger.warning("Scan timed out", scan_id=active_scan.id)
 
             except Exception as e:
                 active_scan.status = "failed"
                 active_scan.completed_at = datetime.now()
+                active_scan.error_message = str(e)
                 await session.commit()
                 logger.error(
                     "Scan failed with error",
@@ -466,8 +352,34 @@ class ScanQueueProcessor:
             timeout_seconds = getattr(settings, 'scan_timeout_seconds', 3600)
             
             for scan in running_scans:
-                # Calculate elapsed time since started_at
-                if scan.started_at:
+                # Handle scans that were never started (no started_at timestamp)
+                if not scan.started_at:
+                    # Calculate time since creation - these scans should timeout sooner
+                    age = datetime.now() - scan.created_at
+                    # Timeout after 5 minutes (300 seconds) for pending/never-started scans
+                    pending_timeout = timedelta(seconds=300)
+                    
+                    if age > pending_timeout:
+                        # Mark scan as failed due to never being started
+                        stmt = (
+                            update(Scan)
+                            .where(Scan.id == scan.id)
+                            .values(
+                                status="failed",
+                                completed_at=datetime.now(),
+                                error_message=f"Scan was never started - timed out after {int(age.total_seconds())} seconds waiting for execution"
+                            )
+                        )
+                        await session.execute(stmt)
+                        await session.commit()
+                        
+                        logger.warning(
+                            "Running scan (never started) timed out",
+                            scan_id=scan.id,
+                            elapsed_seconds=int(age.total_seconds()),
+                        )
+                else:
+                    # Calculate elapsed time since started_at
                     elapsed = datetime.now() - scan.started_at
                     timeout_delta = timedelta(seconds=timeout_seconds)
                     
@@ -478,7 +390,8 @@ class ScanQueueProcessor:
                             .where(Scan.id == scan.id)
                             .values(
                                 status="failed",
-                                completed_at=datetime.now()
+                                completed_at=datetime.now(),
+                                error_message=f"Scan execution timed out after {int(elapsed.total_seconds())} seconds (timeout: {timeout_seconds}s)"
                             )
                         )
                         await session.execute(stmt)
@@ -523,7 +436,8 @@ class ScanQueueProcessor:
                             .where(Scan.id == scan.id)
                             .values(
                                 status="failed",
-                                completed_at=datetime.now()
+                                completed_at=datetime.now(),
+                                error_message=f"Scan remained in pending state for {int(age.total_seconds())} seconds without being scheduled"
                             )
                         )
                         await session.execute(stmt)
